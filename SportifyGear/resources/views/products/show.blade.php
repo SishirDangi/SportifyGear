@@ -519,8 +519,9 @@
             // Initial buy now link
             const buyNowLink = document.getElementById('buyNowLink');
             if (buyNowLink && currentSelectedVariantId) {
-                buyNowLink.href = '{{ route('orders.place', ['productId' => $product->id, 'variantId' => '']) }}' +
-                    currentSelectedVariantId;
+                let baseUrl =
+                    '{{ route('orders.place', ['productId' => $product->id, 'variantId' => 'VARIANT_PLACEHOLDER']) }}';
+                buyNowLink.href = baseUrl.replace('VARIANT_PLACEHOLDER', currentSelectedVariantId);
             }
 
             // Add to Cart logic
