@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\DB;
 
 class OrderController extends Controller
 {
-    // ==================== CART-BASED CHECKOUT (STEP 1) ====================
+    //  CART-BASED CHECKOUT
     public function prepare(Request $request)
     {
         $request->validate([
@@ -58,7 +58,6 @@ class OrderController extends Controller
             return $this->getFinalPrice($item->variant) * $item->quantity;
         });
 
-        // Use the shipping fee submitted from the frontend (dynamic based on address)
         $shippingFee = (float) $request->input('shipping_fee', 0);
         $total = $subtotal + $shippingFee;
 
@@ -73,7 +72,7 @@ class OrderController extends Controller
                 'user_id'         => $user->id,
                 'address_id'      => $address->id,
                 'shipping_fee'    => $shippingFee,
-                'status_id'       => 1, // Pending (awaiting payment)
+                'status_id'       => 1, // Pending
                 'order_number'    => 'ORD-' . strtoupper(uniqid()),
                 'discount_amount' => 0,
                 'sub_total'       => $subtotal,
@@ -85,7 +84,7 @@ class OrderController extends Controller
                 OrderItem::create([
                     'order_id'           => $order->id,
                     'product_id'         => $item->variant->product_id,
-                    'product_name'       => $item->variant->product->name, // ✅ Populate product_name
+                    'product_name'       => $item->variant->product->name,
                     'product_variant_id' => $item->product_variant_id,
                     'quantity'           => $item->quantity,
                     'price'              => $price,
@@ -110,7 +109,7 @@ class OrderController extends Controller
         }
     }
 
-    // ==================== DIRECT ORDER FORM (GET) ====================
+    //  DIRECT ORDER FORM (GET) 
     public function directOrderForm($productId, $variantId = null)
     {
         $product = Product::findOrFail($productId);
@@ -240,7 +239,7 @@ class OrderController extends Controller
         }
     }
 
-    // ==================== HELPER: Get final price after discount ====================
+    //  HELPER: Get final price after discount 
     private function getFinalPrice($variant)
     {
         $price = $variant->price ?? 0;

@@ -119,17 +119,6 @@ class AddressController extends Controller
         ]);
     }
 
-    public function getDistricts($provinceId)
-    {
-        $districts = District::where('province_id', $provinceId)
-            ->whereHas('shippingZones', function ($query) {
-                $query->where('is_active', true);
-            })
-            ->get(['id', 'name']);
-
-        return response()->json($districts);
-    }
-
     public function getShippingFee($addressId)
     {
         $address = Address::with('shippingZone')->findOrFail($addressId);

@@ -22,6 +22,11 @@ class ShippingZone extends Model
         return $this->belongsTo(Province::class, 'province_id');
     }
 
+    public function products()
+    {
+        return $this->belongsToMany(Product::class, 'shipping_zone_product');
+    }
+
     public function district()
     {
         return $this->belongsTo(District::class);

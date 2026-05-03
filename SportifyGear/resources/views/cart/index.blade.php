@@ -69,9 +69,17 @@
                                                             <h3 class="font-semibold text-gray-800">
                                                                 {{ $item->variant->product->name }}
                                                             </h3>
-                                                            <p class="text-sm text-gray-500">Variant:
-                                                                {{ $item->variant->name ?? 'Standard' }}
+
+                                                            <p
+                                                                class="text-xs text-gray-400 mt-1 leading-relaxed line-clamp-3">
+                                                                {!! Str::limit(strip_tags($item->variant->description), 120) !!}
                                                             </p>
+
+
+                                                            {{-- <p class="text-sm text-gray-500">Variant:
+                                                                {{ $item->variant->name ?? 'Standard' }}
+                                                            </p> --}}
+
                                                             @if ($item->variant->attributeValues->isNotEmpty())
                                                                 <div class="text-xs text-gray-500 mt-1">
                                                                     @foreach ($item->variant->attributeValues as $attr)

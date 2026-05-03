@@ -44,10 +44,21 @@ class CartController extends Controller
             $discount = $variant->discounts->first();
             $now = Carbon::now();
 
-            if ($discount->start_date && $now->lt($discount->start_date)) {
+            $start = $discount->start_date
+                ? Carbon::parse($discount->start_date)->startOfDay()
+                : null;
+
+            $end = $discount->end_date
+                ? Carbon::parse($discount->end_date)->endOfDay()
+                : null;
+
+            // not yet started
+            if ($start && $now->lt($start)) {
                 return round($price, 2);
             }
-            if ($discount->end_date && $now->gt($discount->end_date)) {
+
+            // already ended
+            if ($end && $now->gt($end)) {
                 return round($price, 2);
             }
 

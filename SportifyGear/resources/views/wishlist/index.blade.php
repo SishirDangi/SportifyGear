@@ -23,52 +23,168 @@
                     @foreach ($wishlistItems as $item)
                         @php
                             $product = $item->product;
-                            $variant = $product->variants->first();
-                            $price = $variant->price ?? 0;
-                            $originalPrice = $price;
+                            $variant = $product->variants->first(); // uses first variant (can be improved)
+                            $originalPrice = $variant->price ?? 0;
+                            $finalPrice = $originalPrice;
                             $discountLabel = null;
 
                             if ($variant && $variant->discounts->isNotEmpty()) {
                                 $discount = $variant->discounts->first();
                                 if ($discount->discount_type === 'percentage') {
-                                    $price -= ($variant->price * $discount->discount_value) / 100;
-                                    $discountLabel = '-' . $discount->discount_value . '%';
+                                    $finalPrice -= ($originalPrice * $discount->discount_value) / 100;
+                                    $discountLabel = $discount->discount_value . '%';
                                 } else {
-                                    $price -= $discount->discount_value;
+                                    $finalPrice = max(0, $originalPrice - $discount->discount_value);
                                     $discountLabel = '-Rs ' . number_format($discount->discount_value);
                                 }
                             }
 
-                            $image = $product->images->where('is_primary', true)->first();
-                            if (!$image && $variant && $variant->images->isNotEmpty()) {
-                                $image =
-                                    $variant->images->where('is_primary', true)->first() ?? $variant->images->first();
-                            }
+                            // Primary image logic (same as products index)
+                            $variantImage = $variant
+                                ? $variant->primary_image ??
+                                    ($variant->images->first()
+                                        ? asset('storage/' . $variant->images->first()->image_path)
+                                        : $product->display_image)
+                                : $product->display_image;
                         @endphp
-                        <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition group wishlist-item"
+
+                        <!-- CARD – exact same structure as products.index -->
+                        <div class="wishlist-item group bg-white rounded-2xl shadow-sm hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-100 hover:border-orange-100 flex flex-col relative"
                             data-product-id="{{ $product->id }}">
-                            <div class="relative overflow-hidden bg-gray-100 aspect-square">
-                                <img src="{{ $image ? asset('storage/' . $image->image_path) : 'https://via.placeholder.com/300' }}"
-                                    alt="{{ $product->name }}"
-                                    class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
-                                @if ($discountLabel)
-                                    <span
-                                        class="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">{{ $discountLabel }}</span>
-                                @endif
-                            </div>
-                            <div class="p-4">
-                                <h3 class="font-semibold text-gray-800 line-clamp-2 mb-2">{{ $product->name }}</h3>
-                                <div class="flex items-baseline gap-2 mb-3">
-                                    <span class="text-orange-600 font-bold">Rs. {{ number_format($price, 2) }}</span>
-                                    @if ($price < $originalPrice)
-                                        <span class="text-gray-400 line-through text-sm">Rs.
-                                            {{ number_format($originalPrice, 2) }}</span>
+
+                            <!-- DISCOUNT BADGE (absolute) -->
+                            @if ($discountLabel)
+                                <div
+                                    class="absolute top-3 right-3 bg-gradient-to-r from-red-500 to-red-600 text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-md z-10">
+                                    @if (str_contains($discountLabel, '%'))
+                                        -{{ $discountLabel }}
+                                    @else
+                                        {{ $discountLabel }}
                                     @endif
                                 </div>
-                                <div class="flex gap-2">
+                            @endif
+
+                            <!-- Image Container (link to product) -->
+                            <a href="{{ route('products.show', $product->slug) }}" class="block">
+                                <div class="relative overflow-hidden bg-gray-100 h-40 sm:h-56">
+                                    <img src="{{ $variantImage }}"
+                                        class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                        alt="{{ $product->name }}">
+                                </div>
+                            </a>
+
+                            <div class="p-3 sm:p-4 flex flex-col flex-grow">
+                                <!-- Category Tag (optional) -->
+                                @if ($product->categories->isNotEmpty())
+                                    <div class="text-xs text-orange-500 font-medium mb-1 uppercase tracking-wide">
+                                        {{ $product->categories->first()->name }}
+                                    </div>
+                                @endif
+
+                                <!-- Product Name (link) -->
+                                <a href="{{ route('products.show', $product->slug) }}" class="block">
+                                    <h3
+                                        class="font-bold text-gray-800 line-clamp-2 group-hover:text-orange-600 transition">
+                                        {{ $product->name }}
+                                    </h3>
+                                </a>
+
+                                <!-- Variant Description (if exists) -->
+                                @if ($variant && $variant->description)
+                                    <p class="text-xs text-gray-500 mt-1.5 line-clamp-2">
+                                        {!! Str::limit(strip_tags($variant->description), 200) !!}
+                                    </p>
+                                @endif
+
+                                <!-- Price Row -->
+                                @if ($variant)
+                                    <div class="mt-3 flex items-baseline gap-2 flex-wrap">
+                                        <span class="text-xl font-bold text-orange-600">
+                                            Rs. {{ number_format($finalPrice, 2) }}
+                                        </span>
+                                        @if ($finalPrice < $originalPrice)
+                                            <span class="text-gray-400 line-through text-sm">
+                                                Rs. {{ number_format($originalPrice, 2) }}
+                                            </span>
+                                        @endif
+                                    </div>
+                                @endif
+
+                                <!-- Rating & Stock Row -->
+                                <div class="mt-3 flex items-center justify-between">
+                                    @if ($product->reviews_count > 0)
+                                        <div class="flex items-center gap-1.5">
+                                            <div class="flex items-center gap-0.5">
+                                                @php $rating = round($product->reviews_avg_rating * 2) / 2; @endphp
+                                                @for ($i = 1; $i <= 5; $i++)
+                                                    @if ($rating >= $i)
+                                                        <svg class="w-3.5 h-3.5 text-yellow-400 fill-current"
+                                                            viewBox="0 0 20 20">
+                                                            <path
+                                                                d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.957a1 1 0 00.95.69h4.153c.969 0 1.371 1.24.588 1.81l-3.36 2.44a1 1 0 00-.364 1.118l1.286 3.957c.3.921-.755 1.688-1.54 1.118l-3.36-2.44a1 1 0 00-1.176 0l-3.36 2.44c-.784.57-1.838-.197-1.539-1.118l1.285-3.957a1 1 0 00-.364-1.118L2.042 9.384c-.783-.57-.38-1.81.588-1.81h4.152a1 1 0 00.951-.69l1.286-3.957z" />
+                                                        </svg>
+                                                    @elseif ($rating + 0.5 == $i)
+                                                        <svg class="w-3.5 h-3.5 text-yellow-400" viewBox="0 0 20 20"
+                                                            fill="currentColor">
+                                                            <defs>
+                                                                <linearGradient
+                                                                    id="half-grad-wish-{{ $product->id }}-{{ $i }}">
+                                                                    <stop offset="50%" stop-color="#FBBF24" />
+                                                                    <stop offset="50%" stop-color="#E5E7EB" />
+                                                                </linearGradient>
+                                                            </defs>
+                                                            <path
+                                                                fill="url(#half-grad-wish-{{ $product->id }}-{{ $i }})"
+                                                                d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.957a1 1 0 00.95.69h4.153c.969 0 1.371 1.24.588 1.81l-3.36 2.44a1 1 0 00-.364 1.118l1.286 3.957c.3.921-.755 1.688-1.54 1.118l-3.36-2.44a1 1 0 00-1.176 0l-3.36 2.44c-.784.57-1.838-.197-1.539-1.118l1.285-3.957a1 1 0 00-.364-1.118L2.042 9.384c-.783-.57-.38-1.81.588-1.81h4.152a1 1 0 00.951-.69l1.286-3.957z" />
+                                                        </svg>
+                                                    @else
+                                                        <svg class="w-3.5 h-3.5 text-gray-300 fill-current"
+                                                            viewBox="0 0 20 20">
+                                                            <path
+                                                                d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.957a1 1 0 00.95.69h4.153c.969 0 1.371 1.24.588 1.81l-3.36 2.44a1 1 0 00-.364 1.118l1.286 3.957c.3.921-.755 1.688-1.54 1.118l-3.36-2.44a1 1 0 00-1.176 0l-3.36 2.44c-.784.57-1.838-.197-1.539-1.118l1.285-3.957a1 1 0 00-.364-1.118L2.042 9.384c-.783-.57-.38-1.81.588-1.81h4.152a1 1 0 00.951-.69l1.286-3.957z" />
+                                                        </svg>
+                                                    @endif
+                                                @endfor
+                                            </div>
+                                            <span class="text-gray-400 text-xs">({{ $product->reviews_count }})</span>
+                                        </div>
+                                    @else
+                                        <div></div>
+                                    @endif
+
+                                    <!-- Stock Status -->
+                                    @if ($variant && $variant->stock_quantity > 0)
+                                        <div class="flex items-center gap-1 text-xs text-green-600">
+                                            <svg class="w-3 h-3" fill="none" stroke="currentColor"
+                                                viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M5 13l4 4L19 7"></path>
+                                            </svg>
+                                            <span>{{ $variant->stock_quantity }} in stock</span>
+                                        </div>
+                                    @else
+                                        <div class="flex items-center gap-1 text-xs text-red-500">
+                                            <svg class="w-3 h-3" fill="none" stroke="currentColor"
+                                                viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M6 18L18 6M6 6l12 12"></path>
+                                            </svg>
+                                            <span>Out of Stock</span>
+                                        </div>
+                                    @endif
+                                </div>
+
+                                <!-- Action Buttons (Add to Cart & Remove) -->
+                                <div class="mt-4 flex gap-2">
                                     <button
                                         class="add-to-cart flex-1 bg-orange-600 text-white py-2 rounded-lg hover:bg-orange-700 transition text-sm"
                                         data-variant-id="{{ $variant->id ?? '' }}">
+                                        <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor"
+                                            viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-1.5 6M17 13l1.5 6M9 21h6M12 21v-6">
+                                            </path>
+                                        </svg>
                                         Add to Cart
                                     </button>
                                     <button
@@ -114,7 +230,8 @@
                     .then(data => {
                         if (data.success) {
                             alert(data.message);
-                            window.updateCartCountExternal?.(data.cart_count);
+                            if (window.updateCartCountExternal) window.updateCartCountExternal(data
+                                .cart_count);
                         } else {
                             alert(data.message);
                         }

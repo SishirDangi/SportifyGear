@@ -4,7 +4,6 @@
         <div class="max-w-7xl mx-auto px-5 sm:px-6 lg:px-5">
             <div x-data="{ mobileFilterOpen: false }" class="flex flex-col lg:flex-row gap-10 lg:gap-4">
 
-                <!-- ================= MOBILE FILTER TOGGLE ================= -->
                 <div class="lg:hidden mb-4">
                     <button @click="mobileFilterOpen = !mobileFilterOpen"
                         class="w-full bg-orange-500 text-white py-3 rounded-xl font-semibold flex justify-between items-center px-4">
@@ -16,7 +15,7 @@
                     </button>
                 </div>
 
-                <!-- ================= SIDEBAR FILTER ================= -->
+                <!--  SIDEBAR FILTER  -->
                 <div :class="{ 'block': mobileFilterOpen, 'hidden': !mobileFilterOpen }"
                     class="lg:block w-full lg:w-60 xl:w-80 lg:ml-2 lg:sticky lg:top-24 lg:self-start">
 
@@ -39,27 +38,24 @@
                         </div>
 
 
-                        <!-- ================= CATEGORIES ================= -->
+                        <!--  CATEGORIES  -->
                         <div>
                             <h3 class="font-semibold text-gray-800 mb-4 flex items-center gap-2">
                                 Categories
                             </h3>
 
                             <div class="space-y-2 max-h-80 overflow-y-auto pr-3 custom-scrollbar">
-
                                 @php
                                     function hasActiveChild($category)
                                     {
                                         if (request('category') == $category->slug) {
                                             return true;
                                         }
-
                                         foreach ($category->childrenRecursive as $child) {
                                             if (hasActiveChild($child)) {
                                                 return true;
                                             }
                                         }
-
                                         return false;
                                     }
 
@@ -70,20 +66,15 @@
                                             $shouldOpen = hasActiveChild($category) ? 'true' : 'false';
 
                                             echo '<div x-data="{ open: ' . $shouldOpen . ' }" class="ml-1">';
-
-                                            // ROW
                                             echo '<div class="flex items-center justify-between group">';
-
-                                            // LINK
                                             echo '<a href="' .
                                                 request()->fullUrlWithQuery(['category' => $category->slug]) .
-                                                '" 
-                class="flex-1 flex items-center gap-2 text-sm px-3 py-2.5 rounded-xl transition-all duration-200 ' .
+                                                '"
+                                                    class="flex-1 flex items-center gap-2 text-sm px-3 py-2.5 rounded-xl transition-all duration-200 ' .
                                                 ($isActive
                                                     ? 'text-orange-600 bg-orange-50 font-medium shadow-sm'
                                                     : 'text-gray-600 hover:text-orange-600 hover:bg-orange-50/50') .
                                                 '">';
-
                                             echo '<span>' . e($category->name) . '</span>';
                                             if ($category->childrenRecursive->count()) {
                                                 echo '<span class="text-xs text-gray-400">(' .
@@ -92,52 +83,41 @@
                                             }
                                             echo '</a>';
 
-                                            // TOGGLE
                                             if ($category->childrenRecursive->isNotEmpty()) {
                                                 echo '<button type="button" @click="open = !open"
-        class="text-gray-400 hover:text-orange-500 transition-all p-2 rounded-lg hover:bg-gray-100">
-
-        <svg x-show="!open" xmlns="http://www.w3.org/2000/svg"
-            class="w-4 h-4 transition-transform"
-            fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M12 4v16m8-8H4" />
-        </svg>
-
-        <svg x-show="open" xmlns="http://www.w3.org/2000/svg"
-            class="w-4 h-4 transition-transform"
-            fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M20 12H4" />
-        </svg>
-
-    </button>';
+                                                        class="text-gray-400 hover:text-orange-500 transition-all p-2 rounded-lg hover:bg-gray-100">
+                                                        <svg x-show="!open" xmlns="http://www.w3.org/2000/svg"
+                                                            class="w-4 h-4 transition-transform" fill="none"
+                                                            viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round"
+                                                                stroke-width="2" d="M12 4v16m8-8H4" />
+                                                        </svg>
+                                                        <svg x-show="open" xmlns="http://www.w3.org/2000/svg"
+                                                            class="w-4 h-4 transition-transform" fill="none"
+                                                            viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round"
+                                                                stroke-width="2" d="M20 12H4" />
+                                                        </svg>
+                                                    </button>';
                                             }
                                             echo '</div>';
 
-                                            // CHILDREN
                                             if ($category->childrenRecursive->isNotEmpty()) {
                                                 echo '<div x-show="open" x-transition.duration.200ms class="ml-5 mt-1 space-y-1 border-l-2 border-gray-100 pl-2">';
                                                 renderCategories($category->childrenRecursive);
                                                 echo '</div>';
                                             }
-
                                             echo '</div>';
                                         }
                                     }
                                 @endphp
-
                                 @php renderCategories($categories); @endphp
-
                             </div>
                         </div>
 
                         <!-- Price Range -->
                         <div>
-                            <h3 class="font-semibold text-gray-800 mb-4 flex items-center gap-2">
-
-                                Price Range
-                            </h3>
+                            <h3 class="font-semibold text-gray-800 mb-4 flex items-center gap-2">Price Range</h3>
                             <div class="grid grid-cols-2 gap-3">
                                 <div class="relative">
                                     <span
@@ -181,15 +161,14 @@
                             class="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-semibold py-3.5 rounded-xl transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 flex items-center justify-center gap-2">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z">
-                                </path>
+                                    d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
                             </svg>
                             Apply Filters
                         </button>
                     </form>
                 </div>
 
-                <!-- ================= PRODUCTS GRID ================= -->
+                <!-- ================= PRODUCTS GRID (VARIANTS AS CARDS) ================= -->
                 <div class="flex-1">
                     <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
                         <div>
@@ -199,7 +178,6 @@
                                 </h1>
                             </div>
                             <p class="text-gray-500 mt-2 flex items-center gap-1">
-
                                 @if (request()->has('search') && request('search') != '')
                                     {{ $products->total() }} products of "{{ request('search') }}" available
                                 @else
@@ -219,12 +197,12 @@
                                     {{ request('sort') == 'price_low_high' ? 'selected' : '' }}>Price: Low to High
                                 </option>
                                 <option value="price_high_low"
-                                    {{ request('sort') == 'price_high_low' ? 'selected' : '' }}> Price: High to Low
+                                    {{ request('sort') == 'price_high_low' ? 'selected' : '' }}>Price: High to Low
                                 </option>
-                                <option value="name_asc" {{ request('sort') == 'name_asc' ? 'selected' : '' }}> Name:
+                                <option value="name_asc" {{ request('sort') == 'name_asc' ? 'selected' : '' }}>Name:
                                     A-Z</option>
-                                <option value="name_desc" {{ request('sort') == 'name_desc' ? 'selected' : '' }}>
-                                    Name: Z-A</option>
+                                <option value="name_desc" {{ request('sort') == 'name_desc' ? 'selected' : '' }}>Name:
+                                    Z-A</option>
                             </select>
                             <div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
                                 <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor"
@@ -234,7 +212,6 @@
                                 </svg>
                             </div>
 
-                            <!-- Keep existing filters -->
                             @foreach (request()->except('sort', 'page') as $key => $value)
                                 @if (is_array($value))
                                     @foreach ($value as $v)
@@ -249,43 +226,38 @@
                     </div>
 
                     <div class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                        @foreach ($products as $product)
+                        @foreach ($products as $variant)
                             @php
-                                $variant = $product->variants->count() ? $product->variants->random() : null;
-
-                                $originalPrice = 0;
-                                $finalPrice = 0;
+                                $product = $variant->product;
+                                $originalPrice = $variant->price;
+                                $finalPrice = $originalPrice;
                                 $discountLabel = null;
 
-                                $variantImage = $variant
-                                    ? $variant->primary_image ??
-                                        ($variant->images->first()
-                                            ? asset('storage/' . $variant->images->first()->image_path)
-                                            : $product->display_image)
-                                    : $product->display_image;
-
-                                if ($variant) {
-                                    $originalPrice = $variant->price;
-                                    $finalPrice = $originalPrice;
-
-                                    if ($variant->discounts->isNotEmpty()) {
-                                        $discount = $variant->discounts->first();
-
-                                        if ($discount->discount_type === 'percentage') {
-                                            $finalPrice -= ($originalPrice * $discount->discount_value) / 100;
-                                            $discountLabel = '-' . $discount->discount_value . '%';
-                                        } else {
-                                            $finalPrice -= $discount->discount_value;
-                                            $discountLabel = '-Rs ' . number_format($discount->discount_value);
-                                        }
+                                // Discount calculation
+                                if ($variant->discounts->isNotEmpty()) {
+                                    $discount = $variant->discounts->first();
+                                    if ($discount->discount_type === 'percentage') {
+                                        $finalPrice -= ($originalPrice * $discount->discount_value) / 100;
+                                        $discountLabel = '-' . $discount->discount_value . '%';
+                                    } else {
+                                        $finalPrice -= $discount->discount_value;
+                                        $discountLabel = '-Rs ' . number_format($discount->discount_value);
                                     }
+                                }
+                                $variantImage = null;
+                                if ($variant->images->isNotEmpty()) {
+                                    $image = $variant->images->sortByDesc('is_primary')->first();
+                                    $variantImage = $image ? asset('storage/' . $image->image_path) : null;
+                                }
+                                if (!$variantImage && $product->images->isNotEmpty()) {
+                                    $image = $product->images->sortByDesc('is_primary')->first();
+                                    $variantImage = $image ? asset('storage/' . $image->image_path) : null;
                                 }
                             @endphp
 
-                            <a href="{{ route('products.show', $product->slug) }}"
+                            <a href="{{ route('products.show', $product->slug) }}?variant={{ $variant->id }}"
                                 class="group bg-white rounded-2xl shadow-sm hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-100 hover:border-orange-100 transform hover:-translate-y-0.5 flex flex-col">
 
-                                <!-- 🔴 DISCOUNT BADGE -->
                                 @if ($discountLabel)
                                     <div
                                         class="absolute top-3 right-3 bg-gradient-to-r from-red-500 to-red-600 text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-md z-10">
@@ -293,58 +265,45 @@
                                     </div>
                                 @endif
 
-                                <!-- Image Container -->
                                 <div class="relative overflow-hidden bg-gray-100 h-40 sm:h-56">
                                     <img src="{{ $variantImage }}"
                                         class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105">
                                 </div>
 
                                 <div class="p-3 sm:p-4">
-                                    <!-- Brand/Category Tag -->
                                     @if ($product->category)
                                         <div class="text-xs text-orange-500 font-medium mb-1 uppercase tracking-wide">
                                             {{ $product->category->name }}
                                         </div>
                                     @endif
 
-                                    <!-- NAME -->
                                     <h3
                                         class="font-bold text-gray-800 line-clamp-2 group-hover:text-orange-600 transition">
                                         {{ $product->name }}
                                     </h3>
 
-                                    <!-- VARIANT DESCRIPTION -->
-                                    @if ($variant && $variant->description)
+                                    @if ($variant->description)
                                         <p class="text-xs text-gray-500 mt-1.5 line-clamp-2">
-                                            {!! Str::limit(strip_tags($variant->description), 120) !!}
+                                            {!! Str::limit(strip_tags($variant->description), 200) !!}
                                         </p>
                                     @endif
 
-                                    <!-- PRICE -->
-                                    @if ($variant)
-                                        <div class="mt-3 flex items-baseline gap-2 flex-wrap">
-                                            <span class="text-xl font-bold text-orange-600">
-                                                Rs. {{ number_format($finalPrice, 2) }}
+                                    <div class="mt-3 flex items-baseline gap-2 flex-wrap">
+                                        <span class="text-xl font-bold text-orange-600">
+                                            Rs. {{ number_format($finalPrice, 2) }}
+                                        </span>
+                                        @if ($finalPrice < $originalPrice)
+                                            <span class="text-gray-400 line-through text-sm">
+                                                Rs. {{ number_format($originalPrice, 2) }}
                                             </span>
+                                        @endif
+                                    </div>
 
-                                            @if ($finalPrice < $originalPrice)
-                                                <span class="text-gray-400 line-through text-sm">
-                                                    Rs. {{ number_format($originalPrice, 2) }}
-                                                </span>
-                                            @endif
-                                        </div>
-                                    @endif
-
-                                    <!-- RATING & STOCK Row -->
                                     <div class="mt-3 flex items-center justify-between">
-                                        <!-- ⭐ RATING -->
                                         @if ($product->reviews_count > 0)
                                             <div class="flex items-center gap-1.5">
                                                 <div class="flex items-center gap-0.5">
-                                                    @php
-                                                        $rating = round($product->reviews_avg_rating * 2) / 2;
-                                                    @endphp
-
+                                                    @php $rating = round($product->reviews_avg_rating * 2) / 2; @endphp
                                                     @for ($i = 1; $i <= 5; $i++)
                                                         @if ($rating >= $i)
                                                             <svg class="w-3.5 h-3.5 text-yellow-400 fill-current"
@@ -382,9 +341,7 @@
                                             <div></div>
                                         @endif
 
-
-                                        <!-- STOCK -->
-                                        @if ($variant && $variant->stock_quantity > 0)
+                                        @if ($variant->stock_quantity > 0)
                                             <div class="flex items-center gap-1 text-xs text-green-600">
                                                 <svg class="w-3 h-3" fill="none" stroke="currentColor"
                                                     viewBox="0 0 24 24">
@@ -425,22 +382,13 @@
         function clearAllFilters() {
             window.location = "{{ route('products.index') }}";
         }
-    </script>
-
-    <script>
-        function clearAllFilters() {
-            window.location = "{{ route('products.index') }}";
-        }
 
         function removeFilter(param) {
             let url = new URL(window.location.href);
             url.searchParams.delete(param);
             window.location.href = url.toString();
         }
-
-        // Optional: Add smooth transitions for filter removal
         document.addEventListener('DOMContentLoaded', function() {
-            // Add custom scrollbar styling if not present
             const style = document.createElement('style');
             style.textContent = `
                 .custom-scrollbar::-webkit-scrollbar {

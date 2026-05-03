@@ -4,45 +4,36 @@
 
         <!-- HERO SECTION -->
         <div class="relative overflow-hidden bg-gradient-to-r from-orange-500 to-pink-500 text-white">
-
             <div
                 class="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8 py-14 sm:py-16 lg:py-20 grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-10 items-center text-center md:text-left">
-
                 <div>
                     <h1 class="text-3xl sm:text-4xl lg:text-5xl font-extrabold leading-tight">
                         Discover Latest Trending Products
                     </h1>
-
                     <p class="mt-4 text-white/90 text-base sm:text-lg">
                         Shop high-quality products at the best prices. Fast delivery, secure payment and trusted by
                         thousands.
                     </p>
-
                     <div class="mt-6 flex flex-col sm:flex-row gap-3 justify-center md:justify-start">
-                        <a href="#products"
+                        <a href="{{ route('products.index') }}"
                             class="bg-white text-orange-600 px-6 py-3 rounded-xl font-semibold hover:bg-gray-100 transition w-full sm:w-auto text-center">
                             Shop Now
                         </a>
-
                         <a href="#categories"
                             class="border border-white px-6 py-3 rounded-xl font-semibold hover:bg-white hover:text-orange-600 transition w-full sm:w-auto text-center">
                             Explore Categories
                         </a>
                     </div>
                 </div>
-
                 <div class="hidden md:flex justify-center">
                     <img src="https://cdn-icons-png.flaticon.com/512/3081/3081559.png"
                         class="w-56 sm:w-64 lg:w-72 drop-shadow-xl" />
                 </div>
-
             </div>
         </div>
 
-        <!-- PRODUCT SECTION -->
+        <!-- PRODUCT SECTION  -->
         <div class="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8">
-
-            <!-- Header -->
             <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
                 <div class="w-full text-center">
                     <h1 class="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-700 tracking-tight mt-10">
@@ -51,46 +42,44 @@
                 </div>
             </div>
 
-            <!-- Product Grid -->
             <div class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
-
-                @foreach ($products as $product)
+                @foreach ($variants as $variant)
                     @php
-                        $variant = $product->variants->count() ? $product->variants->random() : null;
-
-                        $originalPrice = 0;
-                        $finalPrice = 0;
+                        $product = $variant->product;
+                        $originalPrice = $variant->price;
+                        $finalPrice = $originalPrice;
                         $discountLabel = null;
 
-                        $variantImage = $variant
-                            ? $variant->primary_image ??
-                                ($variant->images->first()
-                                    ? asset('storage/' . $variant->images->first()->image_path)
-                                    : $product->display_image)
-                            : $product->display_image;
-
-                        if ($variant) {
-                            $originalPrice = $variant->price;
-                            $finalPrice = $originalPrice;
-
-                            if ($variant->discounts->isNotEmpty()) {
-                                $discount = $variant->discounts->first();
-
-                                if ($discount->discount_type === 'percentage') {
-                                    $finalPrice -= ($originalPrice * $discount->discount_value) / 100;
-                                    $discountLabel = '-' . $discount->discount_value . '%';
-                                } else {
-                                    $finalPrice -= $discount->discount_value;
-                                    $discountLabel = '-Rs ' . number_format($discount->discount_value);
-                                }
+                        // Discount calculation
+                        if ($variant->discounts->isNotEmpty()) {
+                            $discount = $variant->discounts->first();
+                            if ($discount->discount_type === 'percentage') {
+                                $finalPrice -= ($originalPrice * $discount->discount_value) / 100;
+                                $discountLabel = '-' . $discount->discount_value . '%';
+                            } else {
+                                $finalPrice -= $discount->discount_value;
+                                $discountLabel = '-Rs ' . number_format($discount->discount_value);
                             }
+                        }
+
+                        // Image: variant primary first, then product primary
+                        $variantImage = null;
+                        if ($variant->images->isNotEmpty()) {
+                            $image = $variant->images->sortByDesc('is_primary')->first();
+                            $variantImage = $image ? asset('storage/' . $image->image_path) : null;
+                        }
+                        if (!$variantImage && $product->images->isNotEmpty()) {
+                            $image = $product->images->sortByDesc('is_primary')->first();
+                            $variantImage = $image ? asset('storage/' . $image->image_path) : null;
+                        }
+                        if (!$variantImage) {
+                            $variantImage = 'https://via.placeholder.com/300x300?text=No+Image';
                         }
                     @endphp
 
-                    <a href="{{ route('products.show', $product->slug) }}"
+                    <a href="{{ route('products.show', $product->slug) }}?variant={{ $variant->id }}"
                         class="group bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100 hover:border-orange-100 transform hover:-translate-y-0.5 flex flex-col relative">
 
-                        <!-- Discount Badge -->
                         @if ($discountLabel)
                             <div
                                 class="absolute top-2 sm:top-3 right-2 sm:right-3 bg-gradient-to-r from-red-500 to-red-600 text-white text-[10px] sm:text-xs font-bold px-2.5 py-1 rounded-full shadow-md z-10">
@@ -98,16 +87,13 @@
                             </div>
                         @endif
 
-                        <!-- Product Image -->
                         <div
                             class="relative bg-gray-100 h-32 sm:h-44 md:h-52 flex items-center justify-center overflow-hidden p-2">
                             <img src="{{ $variantImage }}"
                                 class="max-h-full max-w-full object-contain transition-transform duration-500 group-hover:scale-110">
                         </div>
 
-                        <!-- Product Details -->
                         <div class="p-3 sm:p-4">
-
                             @if ($product->category)
                                 <div
                                     class="text-[10px] sm:text-xs text-orange-500 font-medium mb-1 uppercase tracking-wide">
@@ -120,34 +106,28 @@
                                 {{ $product->name }}
                             </h3>
 
-                            @if ($variant && $variant->description)
+                            @if ($variant->description)
                                 <p class="text-[11px] sm:text-xs text-gray-500 mt-1.5 line-clamp-2">
                                     {!! Str::limit(strip_tags($variant->description), 120) !!}
                                 </p>
                             @endif
 
-                            @if ($variant)
-                                <div class="mt-3 flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-2 flex-wrap">
-                                    <span class="text-lg sm:text-xl font-bold text-orange-600">
-                                        Rs. {{ number_format($finalPrice, 2) }}
+                            <div class="mt-3 flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-2 flex-wrap">
+                                <span class="text-lg sm:text-xl font-bold text-orange-600">
+                                    Rs. {{ number_format($finalPrice, 2) }}
+                                </span>
+                                @if ($finalPrice < $originalPrice)
+                                    <span class="text-gray-400 line-through text-xs sm:text-sm">
+                                        Rs. {{ number_format($originalPrice, 2) }}
                                     </span>
+                                @endif
+                            </div>
 
-                                    @if ($finalPrice < $originalPrice)
-                                        <span class="text-gray-400 line-through text-xs sm:text-sm">
-                                            Rs. {{ number_format($originalPrice, 2) }}
-                                        </span>
-                                    @endif
-                                </div>
-                            @endif
-
-                            <!-- Rating & Stock -->
                             <div class="mt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-
                                 @if ($product->reviews_count > 0)
                                     <div class="flex items-center gap-1.5">
                                         <div class="flex items-center gap-0.5">
                                             @php $rating = round($product->reviews_avg_rating * 2) / 2; @endphp
-
                                             @for ($i = 1; $i <= 5; $i++)
                                                 @if ($rating >= $i)
                                                     <svg class="w-3 h-3 sm:w-3.5 sm:h-3.5 text-yellow-400 fill-current"
@@ -164,17 +144,14 @@
                                                 @endif
                                             @endfor
                                         </div>
-
-                                        <span class="text-gray-400 text-[10px] sm:text-xs">
-                                            ({{ $product->reviews_count }})
-                                        </span>
+                                        <span
+                                            class="text-gray-400 text-[10px] sm:text-xs">({{ $product->reviews_count }})</span>
                                     </div>
                                 @else
                                     <div></div>
                                 @endif
 
-                                <!-- Stock -->
-                                @if ($variant && $variant->stock_quantity > 0)
+                                @if ($variant->stock_quantity > 0)
                                     <div class="flex items-center gap-1 text-[10px] sm:text-xs text-green-600">
                                         <span>{{ $variant->stock_quantity }} in stock</span>
                                     </div>
@@ -183,12 +160,10 @@
                                         <span>Out of Stock</span>
                                     </div>
                                 @endif
-
                             </div>
                         </div>
                     </a>
                 @endforeach
-
             </div>
         </div>
 

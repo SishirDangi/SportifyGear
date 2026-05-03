@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('payments', function (Blueprint $table) {
             $table->id();
 
-         $table->foreignId('order_id')->unique()->constrained()->cascadeOnDelete();
+            $table->foreignId('order_id')->unique()->constrained()->cascadeOnDelete();
 
             $table->foreignId('user_id')
                 ->constrained()
@@ -37,8 +37,6 @@ return new class extends Migration
 
             $table->index('order_id');
             $table->index('user_id');
-
-            $table->unique('order_id');
         });
     }
 
