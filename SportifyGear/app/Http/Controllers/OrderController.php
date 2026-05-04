@@ -14,10 +14,10 @@ use App\Models\Status;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class OrderController extends Controller
 {
-    //  CART-BASED CHECKOUT
     public function prepare(Request $request)
     {
         $request->validate([
@@ -53,7 +53,6 @@ class OrderController extends Controller
             }
         }
 
-        // Calculate subtotal using final price after discounts
         $subtotal = $cartItems->sum(function ($item) {
             return $this->getFinalPrice($item->variant) * $item->quantity;
         });
@@ -90,28 +89,25 @@ class OrderController extends Controller
                     'price'              => $price,
                 ]);
             }
-
-            // Remove the selected items from the cart
             CartItem::whereIn('id', $request->selected_items)->delete();
-
             DB::commit();
-
             return redirect()->route('payment.show', $order)
                 ->with('success', 'Order created. Please choose a payment method.');
         } catch (\Exception $e) {
             DB::rollBack();
-            \Log::error('Order preparation failed: ' . $e->getMessage(), [
+            Log::error('Order preparation failed', [
+                'error' => $e->getMessage(),
                 'user_id' => $user->id,
-                'selected_items' => $request->selected_items,
-                'trace' => $e->getTraceAsString()
             ]);
             return back()->with('error', 'Failed to prepare order. Please try again.');
         }
     }
 
-    //  DIRECT ORDER FORM (GET) 
-    public function directOrderForm($productId, $variantId = null)
+    public function directOrderForm(Request $request)
     {
+        $productId = $request->query('productId');
+        $variantId = $request->query('variantId');
+
         $product = Product::findOrFail($productId);
         if (!$variantId) {
             $variant = $product->variants()->first();
@@ -128,13 +124,13 @@ class OrderController extends Controller
         return view('orders.place', compact('product', 'variant', 'price', 'subtotal', 'shipping', 'total', 'addresses'));
     }
 
-    // ==================== PLACE ORDER (DIRECT) ====================
     public function placeOrder(Request $request)
     {
         $request->validate([
             'address_id'         => 'required|exists:addresses,id',
             'product_variant_id' => 'required|exists:product_variants,id',
             'quantity'           => 'required|integer|min:1',
+            'shipping_fee'       => 'nullable|numeric|min:0',
         ]);
 
         $address = Address::where('id', $request->address_id)
@@ -150,12 +146,11 @@ class OrderController extends Controller
 
         $price = $this->getFinalPrice($variant);
         $subtotal = $price * $quantity;
-        $shipping = $subtotal > 2000 ? 0 : 100;
+        $shipping = (float) $request->input('shipping_fee', 0);
         $total = $subtotal + $shipping;
 
         DB::beginTransaction();
         try {
-            // Ensure status ID 1 exists
             if (!Status::find(1)) {
                 throw new \Exception('Order status "Pending" not found.');
             }
@@ -164,7 +159,7 @@ class OrderController extends Controller
                 'user_id'         => Auth::id(),
                 'address_id'      => $address->id,
                 'shipping_fee'    => $shipping,
-                'status_id'       => 1, // Pending
+                'status_id'       => 1,
                 'order_number'    => 'ORD-' . strtoupper(uniqid()),
                 'discount_amount' => 0,
                 'sub_total'       => $subtotal,
@@ -186,7 +181,9 @@ class OrderController extends Controller
                 ->with('success', 'Please complete your payment.');
         } catch (\Exception $e) {
             DB::rollBack();
-            \Log::error('Direct order placement failed: ' . $e->getMessage());
+            Log::error('Direct order placement failed', [
+                'error' => $e->getMessage(),
+            ]);
             return back()->with('error', 'Failed to place order. Please try again.');
         }
     }
@@ -198,7 +195,6 @@ class OrderController extends Controller
         return view('orders.success', compact('order'));
     }
 
-
     public function myOrders()
     {
         $orders = Order::with(['status', 'items.productVariant.product'])
@@ -208,11 +204,9 @@ class OrderController extends Controller
         return view('orders.index', compact('orders'));
     }
 
-
     public function show(Order $order)
     {
         if ($order->user_id !== Auth::id()) abort(403);
-
         $order->load(['items.productVariant.product', 'address', 'status', 'coupon']);
         return view('orders.show', compact('order'));
     }
@@ -229,7 +223,7 @@ class OrderController extends Controller
             foreach ($order->items as $item) {
                 $item->productVariant->increment('stock_quantity', $item->quantity);
             }
-            $order->update(['status_id' => 6]);
+            $order->update(['status_id' => 6]); // assume 6 = cancelled
             DB::commit();
             return redirect()->route('orders.show', $order)
                 ->with('success', 'Order cancelled successfully.');
@@ -239,7 +233,6 @@ class OrderController extends Controller
         }
     }
 
-    //  HELPER: Get final price after discount 
     private function getFinalPrice($variant)
     {
         $price = $variant->price ?? 0;

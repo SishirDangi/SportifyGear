@@ -112,16 +112,12 @@ class ProductController extends Controller
 
         $categories = Category::with('childrenRecursive')->whereNull('parent_id')->get();
         $attributes = Attribute::with('values')->get();
-
-        // Pass variants as 'products' to keep Blade compatibility
         return view('products.index', [
             'products'   => $variants,
             'categories' => $categories,
             'attributes' => $attributes,
         ]);
     }
-
-
 
     public function homeProducts()
     {
@@ -245,7 +241,6 @@ class ProductController extends Controller
             ->withCount('reviews')
             ->where('is_active', true)
             ->whereHas('variants.discounts', function ($q) {
-                // Only products with at least one active discount
                 $q->where(function ($q) {
                     $q->whereNull('start_date')->orWhereDate('start_date', '<=', Carbon::today());
                 })->where(function ($q) {

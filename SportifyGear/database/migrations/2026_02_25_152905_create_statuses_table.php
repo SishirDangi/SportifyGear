@@ -14,6 +14,8 @@ return new class extends Migration
         Schema::create('statuses', function (Blueprint $table) {
             $table->id();
             $table->string('name')->unique();
+            $table->integer('order')->default(0);
+            $table->index('order');
             $table->timestamps();
         });
     }

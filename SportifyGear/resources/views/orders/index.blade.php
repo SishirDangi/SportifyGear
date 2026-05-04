@@ -1,125 +1,201 @@
 <x-frontend.layout>
-    <div class="py-12 bg-gray-50 min-h-screen">
+    <div class="py-12 bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h1 class="text-3xl font-bold text-gray-900 mb-8">My Orders</h1>
+
+            <!-- Header -->
+            <div class="mb-10 flex justify-between items-end">
+                <div>
+                    <h1 class="text-4xl font-extrabold text-gray-900 tracking-tight">My Orders</h1>
+                    <p class="text-gray-500 mt-1">Track and manage your purchases</p>
+                </div>
+            </div>
+
+            @php
+                $statusColors = [
+                    'Pending' => 'bg-amber-100 text-amber-800',
+                    'Confirmed' => 'bg-blue-100 text-blue-800',
+                    'Processing' => 'bg-purple-100 text-purple-800',
+                    'Shipped' => 'bg-indigo-100 text-indigo-800',
+                    'Delivered' => 'bg-emerald-100 text-emerald-800',
+                    'Cancelled' => 'bg-rose-100 text-rose-800',
+                    'Returned' => 'bg-gray-100 text-gray-800',
+                ];
+            @endphp
 
             @if ($orders->isEmpty())
-                <div class="bg-white rounded-lg shadow-md p-8 text-center">
-                    <svg class="w-24 h-24 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor"
-                        viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
-                    </svg>
-                    <h2 class="text-2xl font-semibold text-gray-700 mb-2">No orders yet</h2>
-                    <p class="text-gray-500 mb-6">You haven't placed any orders yet.</p>
+                <!-- Empty State -->
+                <div class="bg-white rounded-3xl shadow-lg p-12 text-center">
+                    <div
+                        class="w-24 h-24 mx-auto bg-gradient-to-br from-orange-100 to-orange-200 rounded-full flex items-center justify-center mb-6">
+                        <i class="fa-solid fa-cart-shopping text-4xl text-orange-600"></i>
+                    </div>
+                    <h2 class="text-2xl font-bold text-gray-800 mb-2">No Orders Yet</h2>
+                    <p class="text-gray-500 mb-6">Start shopping to see your orders here</p>
+
                     <a href="{{ route('products.index') }}"
-                        class="inline-block bg-orange-600 text-white px-6 py-3 rounded-lg hover:bg-orange-700 transition">
+                        class="bg-orange-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-orange-700 transition">
                         Start Shopping
                     </a>
                 </div>
             @else
-                <div class="space-y-6">
+                <div class="space-y-8">
                     @foreach ($orders as $order)
-                        <div class="bg-white rounded-lg shadow-md overflow-hidden order-item">
-                            <div class="border-b border-gray-200 p-6">
-                                <div class="flex flex-wrap justify-between items-start gap-4">
-                                    <div>
-                                        <p class="text-sm text-gray-500">Order #{{ $order->order_number }}</p>
-                                        <p class="text-sm text-gray-500">Placed on
-                                            {{ $order->created_at->format('F j, Y') }}</p>
-                                    </div>
-                                    <div>
-                                        <span
-                                            class="inline-block px-3 py-1 text-xs font-semibold rounded-full 
-                                            @if ($order->status_id == 1) bg-yellow-100 text-yellow-800
-                                            @elseif($order->status_id == 2) bg-blue-100 text-blue-800
-                                            @elseif($order->status_id == 3) bg-green-100 text-green-800
-                                            @elseif($order->status_id == 4) bg-red-100 text-red-800
-                                            @else bg-gray-100 text-gray-800 @endif">
-                                            {{ $order->status->name ?? 'Pending' }}
+                        @php
+                            $statusName = $order->status->name ?? 'Pending';
+                            $statusColor = $statusColors[$statusName] ?? 'bg-gray-100 text-gray-800';
+
+                            $orderSubtotal = $order->items->sum(fn($item) => $item->price * $item->quantity);
+                            $shippingFee = $order->shipping_fee ?? 0;
+                            $orderTotal = $order->total ?? $orderSubtotal + $shippingFee;
+                            $itemCount = $order->items->count();
+                        @endphp
+
+                        <!-- Order Card -->
+                        <div class="bg-white rounded-2xl shadow-sm border hover:shadow-lg transition">
+
+                            <!-- Header -->
+                            <div class="p-6 border-b flex justify-between flex-wrap gap-4">
+                                <div>
+                                    <div class="flex items-center gap-3 flex-wrap">
+                                        <span class="text-sm font-mono bg-gray-100 px-2 py-1 rounded">
+                                            #{{ $order->order_number }}
+                                        </span>
+
+                                        <span class="text-sm text-gray-500">
+                                            {{ $order->created_at->format('M d, Y') }}
+                                        </span>
+
+                                        <span class="text-xs bg-gray-100 px-2 py-1 rounded-full">
+                                            {{ $itemCount }} {{ Str::plural('item', $itemCount) }}
                                         </span>
                                     </div>
                                 </div>
+
+                                <div class="text-right">
+                                    <span class="px-3 py-1 text-xs rounded-full {{ $statusColor }}">
+                                        {{ $statusName }}
+                                    </span>
+                                </div>
                             </div>
 
-                            <div class="divide-y divide-gray-200">
+                            <!-- Items -->
+                            <div class="divide-y">
                                 @foreach ($order->items as $item)
-                                    <div class="p-6">
-                                        <div class="flex gap-4">
-                                            @php
-                                                $variant = $item->productVariant;
-                                                $product = $item->product;
-                                                $image = $product->images->where('is_primary', true)->first();
-                                                if (!$image && $variant && $variant->images->isNotEmpty()) {
-                                                    $image =
-                                                        $variant->images->where('is_primary', true)->first() ??
-                                                        $variant->images->first();
-                                                }
-                                            @endphp
-                                            <div class="w-20 h-20 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
-                                                <img src="{{ $image ? asset('storage/' . $image->image_path) : 'https://via.placeholder.com/80' }}"
-                                                    alt="{{ $product->name }}" class="w-full h-full object-cover">
+                                    @php
+                                        $variant = $item->productVariant;
+                                        $product = $item->product;
+                                        $image =
+                                            optional($product->images)->where('is_primary', true)->first() ??
+                                            $variant?->images->first();
+
+                                        $itemTotal = $item->price * $item->quantity;
+                                    @endphp
+
+                                    <div class="p-5 flex gap-4 items-center">
+
+                                        <!-- Image -->
+                                        <div class="w-20 h-20 bg-gray-100 rounded-lg overflow-hidden">
+                                            <img src="{{ $image ? asset('storage/' . $image->image_path) : asset('images/placeholder.png') }}"
+                                                class="w-full h-full object-cover">
+                                        </div>
+
+                                        <!-- Info -->
+                                        <div class="flex-1">
+                                            <h3 class="font-semibold text-gray-800">{{ $product->name }}</h3>
+
+                                            @if ($variant?->name)
+                                                <p class="text-sm text-gray-500">{{ $variant->name }}</p>
+                                            @endif
+
+                                            <div class="text-sm mt-2 text-gray-600">
+                                                Qty: {{ $item->quantity }} × Rs. {{ number_format($item->price, 2) }}
                                             </div>
-                                            <div class="flex-1">
-                                                <h3 class="font-semibold text-gray-800">{{ $product->name }}</h3>
-                                                @if ($variant && $variant->name)
-                                                    <p class="text-sm text-gray-500">Variant: {{ $variant->name }}</p>
-                                                @endif
-                                                <div class="flex justify-between items-center mt-2">
-                                                    <p class="text-sm text-gray-600">Qty: {{ $item->quantity }}</p>
-                                                    <p class="font-semibold text-orange-600">Rs.
-                                                        {{ number_format($item->price * $item->quantity, 2) }}</p>
-                                                </div>
-                                            </div>
+                                        </div>
+
+                                        <!-- Total -->
+                                        <div class="text-right">
+                                            <p class="font-bold text-orange-600 text-lg">
+                                                Rs. {{ number_format($itemTotal, 2) }}
+                                            </p>
                                         </div>
                                     </div>
                                 @endforeach
                             </div>
 
-                            <div class="bg-gray-50 p-6">
-                                <div class="flex flex-wrap justify-between items-center">
-                                    <div class="space-y-1">
-                                        <p class="text-sm text-gray-600">
-                                            <span class="font-medium">Total:</span> Rs.
-                                            {{ number_format($order->total, 2) }}
-                                        </p>
-                                        <p class="text-sm text-gray-600">
-                                            <span class="font-medium">Shipping:</span>
-                                            @if ($order->shipping_fee > 0)
-                                                Rs. {{ number_format($order->shipping_fee, 2) }}
-                                            @else
-                                                Free
-                                            @endif
-                                        </p>
+                            <!-- Bottom Section -->
+                            <div class="p-6 bg-gray-50 flex flex-col lg:flex-row gap-6 justify-between">
+
+                                <!-- 💰 Price Summary -->
+                                <div class="bg-white rounded-xl border p-5 w-full max-w-sm">
+
+                                    <h4 class="text-sm font-semibold text-gray-500 mb-4 uppercase">
+                                        Payment Summary
+                                    </h4>
+
+                                    <div class="space-y-2 text-sm">
+                                        <div class="flex justify-between">
+                                            <span class="text-gray-500">Subtotal</span>
+                                            <span>Rs. {{ number_format($orderSubtotal, 2) }}</span>
+                                        </div>
+
+                                        <div class="flex justify-between">
+                                            <span class="text-gray-500">Shipping Fee</span>
+                                            <span>
+                                                @if ($shippingFee > 0)
+                                                    Rs. {{ number_format($shippingFee, 2) }}
+                                                @else
+                                                    <span class="text-green-600 font-medium">Free</span>
+                                                @endif
+                                            </span>
+                                        </div>
+
+                                        <div class="border-t my-2"></div>
+
+                                        <div class="flex justify-between font-bold text-lg">
+                                            <span>Total</span>
+                                            <span class="text-orange-600 text-xl">
+                                                Rs. {{ number_format($orderTotal, 2) }}
+                                            </span>
+                                        </div>
                                     </div>
-                                    <div class="flex gap-3 mt-4 sm:mt-0">
-                                        <a href="{{ route('orders.show', $order) }}"
-                                            class="px-4 py-2 border border-orange-600 text-orange-600 rounded-lg hover:bg-orange-50 transition">
-                                            View Details
-                                        </a>
-                                        @if (in_array($order->status_id, [1, 2]))
-                                            <form method="POST" action="{{ route('orders.cancel', $order) }}"
-                                                class="inline">
-                                                @csrf
-                                                @method('PUT')
-                                                <button type="submit"
-                                                    class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
-                                                    onclick="return confirm('Are you sure you want to cancel this order?')">
-                                                    Cancel Order
-                                                </button>
-                                            </form>
-                                        @endif
-                                    </div>
+
                                 </div>
+
+                                <!-- Actions -->
+                                <div class="flex flex-col gap-3 justify-center">
+
+                                    <a href="{{ route('orders.show', $order) }}"
+                                        class="px-5 py-2 bg-white border rounded-xl hover:bg-gray-100 text-center">
+                                        View Details
+                                    </a>
+
+                                    @if (in_array($statusName, ['Pending', 'Confirmed']))
+                                        <form method="POST" action="{{ route('orders.cancel', $order) }}">
+                                            @csrf
+                                            @method('PUT')
+
+                                            <button type="submit"
+                                                class="px-5 py-2 bg-red-50 border border-red-200 text-red-600 rounded-xl hover:bg-red-100 w-full">
+                                                Cancel Order
+                                            </button>
+                                        </form>
+                                    @endif
+
+                                </div>
+
                             </div>
+
                         </div>
                     @endforeach
                 </div>
 
-                <div class="mt-8">
+                <!-- Pagination -->
+                <div class="mt-10">
                     {{ $orders->links() }}
                 </div>
+
             @endif
+
         </div>
     </div>
 </x-frontend.layout>

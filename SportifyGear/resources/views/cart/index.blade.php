@@ -75,11 +75,6 @@
                                                                 {!! Str::limit(strip_tags($item->variant->description), 120) !!}
                                                             </p>
 
-
-                                                            {{-- <p class="text-sm text-gray-500">Variant:
-                                                                {{ $item->variant->name ?? 'Standard' }}
-                                                            </p> --}}
-
                                                             @if ($item->variant->attributeValues->isNotEmpty())
                                                                 <div class="text-xs text-gray-500 mt-1">
                                                                     @foreach ($item->variant->attributeValues as $attr)

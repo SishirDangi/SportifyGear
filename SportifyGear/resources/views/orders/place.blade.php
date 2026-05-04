@@ -4,13 +4,12 @@
             <h1 class="text-3xl font-bold text-gray-900 mb-8">Complete Your Order</h1>
 
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <!-- Form Section -->
                 <div class="lg:col-span-2">
                     <form method="POST" action="{{ route('orders.store') }}" id="directOrderForm">
                         @csrf
                         <input type="hidden" name="product_variant_id" value="{{ $variant->id }}">
+                        <input type="hidden" name="shipping_fee" id="shipping_fee_input" value="0">
 
-                        <!-- Address Section with Add/Manage buttons -->
                         <div class="bg-white rounded-xl shadow-md p-6 mb-6">
                             <h2 class="text-xl font-bold text-gray-800 mb-4">Shipping Address</h2>
                             <div class="mb-4">
@@ -19,7 +18,7 @@
                                     class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-orange-500 focus:border-orange-500">
                                     <option value="">Select an address</option>
                                     @foreach ($addresses as $address)
-                                        <option value="{{ $address->id }}">
+                                        <option value="{{ $address->id }}" {{ $loop->first ? 'selected' : '' }}>
                                             {{ $address->address_line1 }}
                                             @if ($address->address_line2)
                                                 , {{ $address->address_line2 }}
@@ -45,7 +44,6 @@
                             <div id="addressSuccessMessage" class="mt-3 text-green-600 text-sm hidden"></div>
                         </div>
 
-                        <!-- Quantity Section -->
                         <div class="bg-white rounded-xl shadow-md p-6">
                             <h2 class="text-xl font-bold text-gray-800 mb-4">Quantity</h2>
                             <div class="flex items-center gap-4">
@@ -62,7 +60,6 @@
                     </form>
                 </div>
 
-                <!-- Order Summary -->
                 <div class="lg:col-span-1">
                     <div class="bg-white rounded-xl shadow-md p-6 sticky top-24">
                         <h2 class="text-xl font-bold mb-4">Order Summary</h2>
@@ -90,13 +87,7 @@
                             </div>
                             <div class="flex justify-between">
                                 <span>Shipping</span>
-                                <span id="shippingDisplay">
-                                    @if ($shipping > 0)
-                                        Rs. {{ number_format($shipping, 2) }}
-                                    @else
-                                        Free
-                                    @endif
-                                </span>
+                                <span id="shippingDisplay">Calculating...</span>
                             </div>
                             <div class="border-t pt-2 mt-2">
                                 <div class="flex justify-between text-lg font-bold">
@@ -122,7 +113,6 @@
         </div>
     </div>
 
-    <!-- Add Address Modal -->
     <div id="addAddressModal"
         class="fixed inset-0 bg-gray-900 bg-opacity-50 backdrop-blur-sm transition-opacity z-50 hidden">
         <div class="flex items-center justify-center min-h-screen p-4">
@@ -205,7 +195,6 @@
         </div>
     </div>
 
-    <!-- Manage Addresses Modal -->
     <div id="manageAddressesModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 backdrop-blur-sm z-50 hidden">
         <div class="flex items-center justify-center min-h-screen p-4">
             <div class="relative bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[85vh] flex flex-col">
@@ -231,7 +220,6 @@
         </div>
     </div>
 
-    <!-- Edit Address Modal -->
     <div id="editAddressModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 backdrop-blur-sm z-50 hidden">
         <div class="flex items-center justify-center min-h-screen p-4">
             <div class="relative bg-white rounded-xl shadow-xl max-w-md w-full max-h-[90vh] flex flex-col">
@@ -317,7 +305,6 @@
         </div>
     </div>
 
-    <!-- Confirmation Modal (Delete) -->
     <div id="confirmModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 backdrop-blur-sm z-50 hidden">
         <div class="flex items-center justify-center min-h-screen p-4">
             <div class="relative bg-white rounded-xl shadow-xl max-w-sm w-full">
@@ -344,20 +331,57 @@
     </div>
 
     <script>
-        // ==================== Quantity and price calculation ====================
         const pricePerUnit = {{ $price }};
-        const shippingFreeThreshold = 2000;
-        const baseShipping = 100;
+        let currentShippingFee = 0;
 
-        function updateTotals() {
+        function getCsrfToken() {
+            return document.querySelector('meta[name="csrf-token"]')?.content ||
+                document.querySelector('input[name="_token"]')?.value;
+        }
+
+        function updateTotalsUI() {
             let qty = parseInt(document.getElementById('quantity').value) || 1;
             let subtotal = pricePerUnit * qty;
-            let shipping = subtotal > shippingFreeThreshold ? 0 : baseShipping;
-            let total = subtotal + shipping;
+            let total = subtotal + currentShippingFee;
 
             document.getElementById('subtotalDisplay').innerText = 'Rs. ' + subtotal.toFixed(2);
-            document.getElementById('shippingDisplay').innerHTML = shipping ? 'Rs. ' + shipping.toFixed(2) : 'Free';
+            document.getElementById('shippingDisplay').innerHTML = currentShippingFee > 0 ? 'Rs. ' + currentShippingFee
+                .toFixed(2) : 'Free';
             document.getElementById('totalDisplay').innerText = 'Rs. ' + total.toFixed(2);
+            document.getElementById('shipping_fee_input').value = currentShippingFee;
+        }
+
+        async function fetchShippingFee() {
+            const addressId = document.getElementById('address_id').value;
+            if (!addressId) {
+                currentShippingFee = 0;
+                updateTotalsUI();
+                return;
+            }
+
+            const quantity = document.getElementById('quantity').value;
+            const productVariantId = {{ $variant->id }};
+
+            document.getElementById('shippingDisplay').innerHTML = 'Calculating...';
+
+            try {
+                const url =
+                    `/addresses/${addressId}/shipping-fee?product_variant_id=${productVariantId}&quantity=${quantity}`;
+                const response = await fetch(url, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+                if (!response.ok) throw new Error('Shipping fee request failed');
+                const data = await response.json();
+                const fee = parseFloat(data.shipping_fee ?? data.fee ?? 0);
+                currentShippingFee = isNaN(fee) ? 0 : fee;
+                updateTotalsUI();
+            } catch (err) {
+                console.error('Error fetching shipping fee:', err);
+                currentShippingFee = 0;
+                updateTotalsUI();
+            }
         }
 
         function changeQty(delta) {
@@ -366,19 +390,23 @@
             let max = parseInt(input.max);
             if (newVal >= 1 && newVal <= max) {
                 input.value = newVal;
-                updateTotals();
+                fetchShippingFee();
             }
         }
 
-        document.getElementById('quantity').addEventListener('input', updateTotals);
+        document.getElementById('quantity').addEventListener('input', function() {
+            fetchShippingFee();
+        });
+        document.getElementById('address_id').addEventListener('change', function() {
+            fetchShippingFee();
+        });
 
-        // ==================== CSRF token helper ====================
-        function getCsrfToken() {
-            return document.querySelector('meta[name="csrf-token"]')?.content ||
-                document.querySelector('input[name="_token"]')?.value;
+        if (document.getElementById('address_id').value) {
+            fetchShippingFee();
+        } else {
+            updateTotalsUI();
         }
 
-        // ==================== Helper: Refresh main address dropdown ====================
         async function refreshAddressDropdown(selectedId = null) {
             try {
                 const res = await fetch('/addresses', {
@@ -399,12 +427,17 @@
                     if (addr.id == currentSelected) option.selected = true;
                     select.appendChild(option);
                 });
+                // After refreshing, re-fetch shipping if an address is selected
+                if (select.value) fetchShippingFee();
+                else {
+                    currentShippingFee = 0;
+                    updateTotalsUI();
+                }
             } catch (err) {
                 console.error('Failed to refresh addresses', err);
             }
         }
 
-        // ==================== Load districts for a province ====================
         async function loadDistricts(provinceId, districtSelectId, selectedDistrictId = null) {
             const districtSelect = document.getElementById(districtSelectId);
             if (!provinceId) {
@@ -433,7 +466,6 @@
             }
         }
 
-        // ==================== Add Address Modal ====================
         const addModal = document.getElementById('addAddressModal');
         const openAddBtn = document.getElementById('openAddressModalBtn');
         const closeAddBtns = document.querySelectorAll('#addAddressModal .close-modal');
@@ -455,17 +487,14 @@
 
         closeAddBtns.forEach(btn => btn.addEventListener('click', () => addModal.classList.add('hidden')));
 
-        // Province -> District chaining for Add modal
         const addProvinceSelect = document.getElementById('province_select');
         const addDistrictSelect = document.getElementById('district_select');
         addProvinceSelect?.addEventListener('change', (e) => {
             loadDistricts(e.target.value, 'district_select');
         });
 
-        // Submit new address
         addForm?.addEventListener('submit', async (e) => {
             e.preventDefault();
-            // Clear previous errors
             document.querySelectorAll('#newAddressForm .error-message').forEach(el => el.classList.add(
                 'hidden'));
             modalErrorMessage.classList.add('hidden');
@@ -485,7 +514,6 @@
                 const newAddress = await res.json();
                 await refreshAddressDropdown(newAddress.id);
                 addModal.classList.add('hidden');
-                // Show success message
                 const successDiv = document.getElementById('addressSuccessMessage');
                 if (successDiv) {
                     successDiv.textContent = 'Address added successfully!';
@@ -510,7 +538,6 @@
             }
         });
 
-        // ==================== Manage Addresses Modal ====================
         const manageModal = document.getElementById('manageAddressesModal');
         const manageBtn = document.getElementById('manageAddressesBtn');
         const closeManageBtns = document.querySelectorAll('#manageAddressesModal .close-manage-modal');
@@ -554,7 +581,6 @@
                     `;
                     manageList.appendChild(card);
                 });
-                // Attach edit/delete events
                 document.querySelectorAll('.edit-address-btn').forEach(btn => {
                     btn.addEventListener('click', () => openEditModal(btn.dataset.id));
                 });
@@ -585,17 +611,16 @@
                     await refreshAddressDropdown();
                     if (manageModal.classList.contains('hidden') === false) await loadManageAddresses();
                     document.getElementById('confirmModal').classList.add('hidden');
-                    // If deleted address was selected, clear selection
                     const addressSelect = document.getElementById('address_id');
                     if (addressSelect.value == currentDeleteId) addressSelect.value = '';
                     currentDeleteId = null;
-                    // Show success message
                     const successDiv = document.getElementById('addressSuccessMessage');
                     if (successDiv) {
                         successDiv.textContent = 'Address deleted successfully!';
                         successDiv.classList.remove('hidden');
                         setTimeout(() => successDiv.classList.add('hidden'), 3000);
                     }
+                    fetchShippingFee();
                 } else {
                     alert('Failed to delete address');
                 }
@@ -617,7 +642,6 @@
 
         closeManageBtns.forEach(btn => btn.addEventListener('click', () => manageModal.classList.add('hidden')));
 
-        // ==================== Edit Address Modal ====================
         const editModal = document.getElementById('editAddressModal');
         const closeEditBtns = document.querySelectorAll('#editAddressModal .close-edit-modal');
         const editForm = document.getElementById('editAddressForm');
@@ -648,7 +672,6 @@
                 document.getElementById('edit_address_line1').value = addr.address_line1;
                 document.getElementById('edit_address_line2').value = addr.address_line2 || '';
                 document.getElementById('edit_nearest_landmark').value = addr.nearest_landmark || '';
-                // Set province and load districts
                 const provinceSelect = document.getElementById('edit_province_id');
                 provinceSelect.value = addr.province_id;
                 await loadDistricts(addr.province_id, 'edit_district_id', addr.district_id);
@@ -658,7 +681,6 @@
             }
         }
 
-        // Province -> District for edit modal
         const editProvinceSelect = document.getElementById('edit_province_id');
         editProvinceSelect?.addEventListener('change', (e) => {
             loadDistricts(e.target.value, 'edit_district_id');
@@ -672,11 +694,10 @@
 
             const addressId = document.getElementById('edit_address_id').value;
             const formData = new FormData(editForm);
-            // Override method to PUT
             formData.append('_method', 'PUT');
 
             const res = await fetch(`/addresses/${addressId}`, {
-                method: 'POST', // because we use _method=PUT
+                method: 'POST',
                 headers: {
                     'X-CSRF-TOKEN': getCsrfToken(),
                     'Accept': 'application/json',
@@ -689,13 +710,13 @@
                 await refreshAddressDropdown(addressId);
                 editModal.classList.add('hidden');
                 if (manageModal.classList.contains('hidden') === false) await loadManageAddresses();
-                // Show success message
                 const successDiv = document.getElementById('addressSuccessMessage');
                 if (successDiv) {
                     successDiv.textContent = 'Address updated successfully!';
                     successDiv.classList.remove('hidden');
                     setTimeout(() => successDiv.classList.add('hidden'), 3000);
                 }
+                fetchShippingFee();
             } else {
                 const errorData = await res.json();
                 if (errorData.errors) {
@@ -716,7 +737,6 @@
 
         closeEditBtns.forEach(btn => btn.addEventListener('click', () => editModal.classList.add('hidden')));
 
-        // ==================== Helper to escape HTML ====================
         function escapeHtml(str) {
             if (!str) return '';
             return str.replace(/[&<>]/g, function(m) {
@@ -727,7 +747,6 @@
             });
         }
 
-        // Close modals when clicking outside (optional)
         window.addEventListener('click', (e) => {
             if (e.target === addModal) addModal.classList.add('hidden');
             if (e.target === manageModal) manageModal.classList.add('hidden');

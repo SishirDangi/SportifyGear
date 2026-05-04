@@ -174,7 +174,6 @@
                                     @endif
                                 </div>
 
-                                <!-- Action Buttons (Add to Cart & Remove) -->
                                 <div class="mt-4 flex gap-2">
                                     <button
                                         class="add-to-cart flex-1 bg-orange-600 text-white py-2 rounded-lg hover:bg-orange-700 transition text-sm"
@@ -205,13 +204,26 @@
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
     <script>
-        // Add to Cart from Wishlist
+        function showToast(type, message) {
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: type,
+                title: message,
+                showConfirmButton: false,
+                timer: 2000
+            });
+        }
+
         document.querySelectorAll('.add-to-cart').forEach(btn => {
             btn.addEventListener('click', function() {
                 const variantId = this.dataset.variantId;
+
                 if (!variantId) {
-                    alert('Product variant not available');
+                    showToast('error', 'Product variant not available');
                     return;
                 }
 
@@ -229,38 +241,57 @@
                     .then(response => response.json())
                     .then(data => {
                         if (data.success) {
-                            alert(data.message);
-                            if (window.updateCartCountExternal) window.updateCartCountExternal(data
-                                .cart_count);
+                            showToast('success', data.message);
+
+                            if (window.updateCartCountExternal) {
+                                window.updateCartCountExternal(data.cart_count);
+                            }
                         } else {
-                            alert(data.message);
+                            showToast('error', data.message);
                         }
                     })
-                    .catch(error => console.error('Error:', error));
+                    .catch(error => {
+                        console.error('Error:', error);
+                        showToast('error', 'Something went wrong!');
+                    });
             });
         });
 
-        // Remove from Wishlist
         document.querySelectorAll('.remove-from-wishlist').forEach(btn => {
             btn.addEventListener('click', function() {
                 const productId = this.dataset.productId;
-                if (confirm('Remove this item from wishlist?')) {
-                    fetch(`/wishlist/remove/${productId}`, {
-                            method: 'DELETE',
-                            headers: {
-                                'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                            }
-                        })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.success) {
-                                location.reload();
-                            } else {
-                                alert('Failed to remove item');
-                            }
-                        })
-                        .catch(error => console.error('Error:', error));
-                }
+
+                Swal.fire({
+                    title: 'Remove item?',
+                    text: "This will remove it from wishlist",
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#ea580c',
+                    cancelButtonColor: '#6b7280',
+                    confirmButtonText: 'Yes, remove it'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        fetch(`/wishlist/remove/${productId}`, {
+                                method: 'DELETE',
+                                headers: {
+                                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                                }
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.success) {
+                                    showToast('success', 'Removed from wishlist');
+                                    setTimeout(() => location.reload(), 1000);
+                                } else {
+                                    showToast('error', 'Failed to remove item');
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error:', error);
+                                showToast('error', 'Something went wrong!');
+                            });
+                    }
+                });
             });
         });
     </script>

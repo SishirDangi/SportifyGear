@@ -20,6 +20,14 @@
                 </div>
             @endif
 
+            {{-- Warning if shipping fee is zero but subtotal > 0 --}}
+            @if ($order->shipping_fee == 0 && $order->sub_total > 0)
+                <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-3 mb-4 rounded text-sm"
+                    id="shippingWarning">
+                    ⚠️ Shipping fee is not calculated correctly. Please contact support.
+                </div>
+            @endif
+
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {{-- Payment Form --}}
                 <div class="lg:col-span-2">
@@ -29,6 +37,9 @@
                         <form method="POST" action="{{ route('payment.process') }}" id="paymentForm">
                             @csrf
                             <input type="hidden" name="order_id" value="{{ $order->id }}">
+                            <input type="hidden" id="order_subtotal" value="{{ $order->sub_total }}">
+                            <input type="hidden" id="order_shipping_fee" value="{{ $order->shipping_fee }}">
+                            <input type="hidden" id="order_total" value="{{ $order->total }}">
 
                             {{-- Payment Methods --}}
                             <div class="space-y-4">
@@ -63,7 +74,7 @@
                                             {{ old('payment_method') == 'khalti' ? 'checked' : '' }}
                                             class="w-4 h-4 text-orange-600 focus:ring-orange-500">
                                         <div class="ml-4 flex items-center">
-                                            <img src="/khalti.png" alt="Khalti" class="h-8 w-auto">
+                                            <img src="{{ asset('khalti.png') }}" alt="Khalti" class="h-8 w-auto">
                                             <span class="ml-3 font-semibold text-gray-800">Khalti</span>
                                         </div>
                                     </div>
@@ -74,6 +85,8 @@
                             @error('payment_method')
                                 <p class="text-red-500 text-sm mt-2">{{ $message }}</p>
                             @enderror
+
+                            <div id="paymentError" class="text-red-600 text-sm mt-2 hidden"></div>
 
                             <button type="submit" id="payButton"
                                 class="w-full mt-8 bg-orange-600 text-white py-3 rounded-lg hover:bg-orange-700 transition font-semibold">
@@ -87,7 +100,7 @@
                     </div>
                 </div>
 
-                {{-- Order Summary --}}
+                {{-- Order Summary (same as before) --}}
                 <div class="lg:col-span-1">
                     <div class="bg-white rounded-xl shadow-md p-6 sticky top-24">
                         <h2 class="text-xl font-bold text-gray-800 mb-4">Order Summary</h2>
@@ -109,7 +122,7 @@
                                     </div>
                                     <div class="flex-1">
                                         <p class="font-semibold text-sm">{{ $product->name }}</p>
-                                        @if ($variant->name)
+                                        @if ($variant && $variant->name)
                                             <p class="text-xs text-gray-500">{{ $variant->name }}</p>
                                         @endif
                                         <p class="text-xs text-gray-500">Qty: {{ $item->quantity }}</p>
@@ -129,7 +142,7 @@
                             <div class="flex justify-between">
                                 <span class="text-gray-600">Shipping</span>
                                 <span class="font-semibold">
-                                    {{ $order->shipping_fee > 0 ? 'Rs. ' . number_format($order->shipping_fee, 2) : 'Free' }}
+                                    {{ ($order->shipping_fee ?? 0) > 0 ? 'Rs. ' . number_format($order->shipping_fee, 2) : 'Free' }}
                                 </span>
                             </div>
                             <div class="border-t pt-2 mt-2">
@@ -144,14 +157,15 @@
 
                         <div class="mt-6 text-sm text-gray-600 border-t pt-4">
                             <p class="font-medium mb-1">Shipping Address:</p>
-                            <p>{{ $order->address->name }}</p>
-                            <p>{{ $order->address->address_line1 }}
-                                @if ($order->address->address_line2)
+                            <p>{{ $order->address->name ?? 'N/A' }}</p>
+                            <p>{{ $order->address->address_line1 ?? '' }}
+                                @if (!empty($order->address->address_line2))
                                     , {{ $order->address->address_line2 }}
                                 @endif
                             </p>
-                            <p>{{ $order->address->district?->name }}, {{ $order->address->province?->name }}</p>
-                            <p>Phone: {{ $order->address->phone_no }}</p>
+                            <p>{{ optional($order->address->district)->name ?? '' }},
+                                {{ optional($order->address->province)->name ?? '' }}</p>
+                            <p>Phone: {{ $order->address->phone_no ?? '' }}</p>
                         </div>
                     </div>
                 </div>
@@ -159,20 +173,56 @@
         </div>
     </div>
 
-    {{-- Prevent double submission and show Khalti-specific message --}}
     <script>
         document.getElementById('paymentForm').addEventListener('submit', function(e) {
             const btn = document.getElementById('payButton');
-            const selectedMethod = document.querySelector('input[name="payment_method"]:checked').value;
+            const errorDiv = document.getElementById('paymentError');
+            errorDiv.classList.add('hidden');
+            errorDiv.innerText = '';
 
+            // Get order values from hidden inputs
+            const subtotal = parseFloat(document.getElementById('order_subtotal').value);
+            const shippingFee = parseFloat(document.getElementById('order_shipping_fee').value);
+            const total = parseFloat(document.getElementById('order_total').value);
+
+            // Validate arithmetic
+            let isValid = true;
+            let errorMsg = '';
+
+            if (isNaN(subtotal) || isNaN(shippingFee) || isNaN(total)) {
+                isValid = false;
+                errorMsg = 'Order total information is invalid.';
+            } else if (Math.abs((subtotal + shippingFee) - total) > 0.01) {
+                isValid = false;
+                errorMsg = 'Order total calculation is incorrect. Please contact support.';
+            } else if (shippingFee === 0 && subtotal > 0) {
+                // Optional: block if shipping fee is zero but subtotal > 0 (unless free shipping is expected)
+                // You can customize this rule based on your business logic. For now, we allow but show warning.
+                // If you want to block, uncomment below:
+                // isValid = false;
+                // errorMsg = 'Shipping fee is not calculated correctly. Please contact support.';
+                // Instead we just show warning but allow payment? The existing warning banner is shown.
+                // We'll still allow, but if you want to block, enable the lines above.
+                console.log('Shipping fee is zero but subtotal positive');
+            }
+
+            if (!isValid) {
+                e.preventDefault();
+                errorDiv.innerText = errorMsg;
+                errorDiv.classList.remove('hidden');
+                btn.disabled = false; // re-enable button
+                return false;
+            }
+
+            // Prevent double submission
             if (btn.disabled) {
                 e.preventDefault();
                 return false;
             }
 
             btn.disabled = true;
+            const selectedMethod = document.querySelector('input[name="payment_method"]:checked').value;
 
-            // Change button text based on payment method
             if (selectedMethod === 'khalti') {
                 btn.innerHTML = `
                     <svg class="animate-spin h-5 w-5 mx-auto text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">

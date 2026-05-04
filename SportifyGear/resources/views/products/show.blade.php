@@ -17,7 +17,6 @@
             </nav>
 
             @php
-
                 function computeVariantPrice($variant, &$discountPercentOut = null)
                 {
                     $original = $variant->price ?? 0;
@@ -81,14 +80,11 @@
                         $currentImages = $variantsData[$selectedVariant->id]['images'] ?? collect();
                         $primaryImage = $currentImages->first() ?? 'https://via.placeholder.com/600x600?text=No+Image';
                     @endphp
-                    <!-- Main Image -->
                     <div
                         class="w-full h-[500px] bg-gray-100 flex items-center justify-center overflow-hidden rounded-xl">
                         <img id="mainProductImage" src="{{ $primaryImage }}" alt="{{ $product->name }}"
                             class="w-full h-full object-contain transition-transform duration-500">
                     </div>
-
-                    <!-- Thumbnails Container -->
                     <div id="thumbnailContainer"
                         class="grid grid-cols-5 gap-3 mt-4 {{ $currentImages->count() > 1 ? '' : 'hidden' }}">
                         @foreach ($currentImages as $index => $imgUrl)
@@ -131,7 +127,7 @@
                                                     <stop offset="50%" stop-color="#E5E7EB" />
                                                 </linearGradient>
                                             </defs>
-                                            <path fill="url(#half-grad-{{ $product->id }}"
+                                            <path fill="url(#half-grad-{{ $product->id }})"
                                                 d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.957a1 1 0 00.95.69h4.153c.969 0 1.371 1.24.588 1.81l-3.36 2.44a1 1 0 00-.364 1.118l1.286 3.957c.3.921-.755 1.688-1.54 1.118l-3.36-2.44a1 1 0 00-1.176 0l-3.36 2.44c-.784.57-1.838-.197-1.539-1.118l1.285-3.957a1 1 0 00-.364-1.118L2.042 9.384c-.783-.57-.38-1.81.588-1.81h4.152a1 1 0 00.951-.69l1.286-3.957z" />
                                         </svg>
                                     @else
@@ -250,7 +246,7 @@
                         </div>
                     @endif
 
-                    <!-- ACTION BUTTONS  -->
+                    <!-- ACTION BUTTONS -->
                     @auth
                         <div class="flex gap-3">
                             <button id="addToCartBtn"
@@ -273,13 +269,12 @@
                             </button>
                         </div>
                         <div class="mt-3">
-                            <a id="buyNowLink" href="#"
+                            <a id="buyNowLink" data-base-url="{{ route('orders.place') }}" href="#"
                                 class="block w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition duration-300 ease-in-out transform hover:scale-105 text-center">
                                 <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor"
                                     viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z">
-                                    </path>
+                                        d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                 </svg>
                                 Buy Now
                             </a>
@@ -346,7 +341,6 @@
                         @foreach ($relatedProducts as $rel)
                             @php
                                 $relVariant = $rel->variants->first();
-
                                 if ($relVariant) {
                                     $relPriceData = computeVariantPrice($relVariant, $relDiscountPercent);
                                     $relFinal = $relPriceData['final'];
@@ -356,12 +350,10 @@
                                         $image = $relVariant->images->sortByDesc('is_primary')->first();
                                         $relImage = asset('storage/' . $image->image_path);
                                     }
-
                                     if (!$relImage && $rel->images->isNotEmpty()) {
                                         $image = $rel->images->sortByDesc('is_primary')->first();
                                         $relImage = asset('storage/' . $image->image_path);
                                     }
-
                                     if (!$relImage) {
                                         $relImage = 'https://via.placeholder.com/300x300?text=No+Image';
                                     }
@@ -423,12 +415,36 @@
         let currentSelectedVariantId = {{ $selectedVariant->id }};
         const cartVariantIds = new Set(@json($cartVariantIds));
 
+        // Helper: update URL query parameter without reload
+        function updateUrlVariant(variantId) {
+            const url = new URL(window.location.href);
+            url.searchParams.set('variant', variantId);
+            window.history.pushState({}, '', url);
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
+            const buyNowLink = document.getElementById('buyNowLink');
+            const productId = {{ $product->id }};
+            const baseUrl = buyNowLink ? buyNowLink.dataset.baseUrl : '';
+
+            // Helper to update Buy Now link
+            function updateBuyNowLink(variantId) {
+                if (buyNowLink) {
+                    buyNowLink.href = baseUrl + '?productId=' + productId + '&variantId=' + variantId;
+                }
+            }
+
+            // Set initial link
+            updateBuyNowLink(currentSelectedVariantId);
+
             const variantCards = document.querySelectorAll('.variant-card');
             variantCards.forEach(card => {
                 card.addEventListener('click', function() {
                     const variantId = parseInt(this.dataset.variantId);
                     if (variantId === currentSelectedVariantId) return;
+
+                    // Update URL without reload
+                    updateUrlVariant(variantId);
 
                     variantCards.forEach(c => c.classList.remove('border-orange-500',
                         'bg-orange-50'));
@@ -438,6 +454,7 @@
 
                     const data = variantsData[variantId];
                     if (data) {
+                        // Update price
                         const finalPriceSpan = document.getElementById('finalPrice');
                         const originalPriceSpan = document.getElementById('originalPrice');
                         const discountBadge = document.getElementById('discountBadge');
@@ -504,25 +521,11 @@
                             thumbContainer.classList.add('hidden');
                         }
 
-                        // Buy now link
-                        const buyNowLink = document.getElementById('buyNowLink');
-                        if (buyNowLink) {
-                            let url =
-                                '{{ route('orders.place', ['productId' => $product->id, 'variantId' => '']) }}' +
-                                variantId;
-                            buyNowLink.href = url;
-                        }
+                        // Update Buy Now link
+                        updateBuyNowLink(variantId);
                     }
                 });
             });
-
-            // Initial buy now link
-            const buyNowLink = document.getElementById('buyNowLink');
-            if (buyNowLink && currentSelectedVariantId) {
-                let baseUrl =
-                    '{{ route('orders.place', ['productId' => $product->id, 'variantId' => 'VARIANT_PLACEHOLDER']) }}';
-                buyNowLink.href = baseUrl.replace('VARIANT_PLACEHOLDER', currentSelectedVariantId);
-            }
 
             // Add to Cart logic
             @auth

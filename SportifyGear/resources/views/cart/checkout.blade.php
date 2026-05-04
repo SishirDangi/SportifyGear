@@ -368,13 +368,12 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // ---------- Helper: Get selected product IDs ----------
             function getSelectedItems() {
                 const inputs = document.querySelectorAll('input[name="selected_items[]"]');
                 return Array.from(inputs).map(input => input.value);
             }
 
-            // DOM elements
+
             const modal = document.getElementById('addAddressModal');
             const manageModal = document.getElementById('manageAddressesModal');
             const editModal = document.getElementById('editAddressModal');
@@ -402,12 +401,10 @@
             const subtotal = {{ $subtotal ?? 0 }};
             let pendingDeleteId = null;
 
-            // Immediately fetch shipping fee for pre-selected address
             if (addressSelect.value) {
                 fetchShippingFee(addressSelect.value);
             }
 
-            // Helper functions
             function clearInlineErrors() {
                 document.querySelectorAll('.error-message').forEach(el => {
                     el.classList.add('hidden');
@@ -468,17 +465,29 @@
 
             function fetchShippingFee(addressId) {
                 if (!addressId) return;
+
+                // Show "Calculating..." while fetching
+                if (shippingDisplay) {
+                    shippingDisplay.textContent = 'Calculating...';
+                }
+
                 const selectedItems = getSelectedItems();
                 const params = new URLSearchParams();
                 selectedItems.forEach(id => params.append('selected_items[]', id));
                 const url = `/addresses/${addressId}/shipping-fee?${params.toString()}`;
+
                 fetch(url)
                     .then(res => res.json())
                     .then(data => {
                         const fee = data.shipping_fee ?? data.fee ?? 0;
                         updateShippingAndTotal(fee);
                     })
-                    .catch(err => console.error('Error fetching shipping fee:', err));
+                    .catch(err => {
+                        console.error('Error fetching shipping fee:', err);
+                        if (shippingDisplay) {
+                            shippingDisplay.textContent = 'Error';
+                        }
+                    });
             }
 
             function refreshAddressDropdown(selectedId = null) {
@@ -569,7 +578,7 @@
                             document.getElementById('edit_address_line1').value = addr.address_line1;
                             document.getElementById('edit_address_line2').value = addr.address_line2 || '';
                             document.getElementById('edit_nearest_landmark').value = addr.nearest_landmark ||
-                            '';
+                                '';
                             document.getElementById('edit_province_id').value = addr.province_id;
                             const provinceId = addr.province_id;
                             const selectedItems = getSelectedItems();
@@ -635,7 +644,6 @@
                 });
             }
 
-            // Persist selected address
             const STORAGE_KEY = 'checkout_selected_address_id';
 
             function saveSelectedAddress() {
@@ -659,7 +667,6 @@
             });
             restoreSelectedAddress();
 
-            // Open add modal
             openBtn.addEventListener('click', function(e) {
                 e.preventDefault();
                 modal.classList.remove('hidden');
@@ -669,14 +676,12 @@
                 districtSelect.innerHTML = '<option value="">First select province</option>';
             });
 
-            // Open manage modal
             manageBtn.addEventListener('click', function(e) {
                 e.preventDefault();
                 loadManageAddresses();
                 manageModal.classList.remove('hidden');
             });
 
-            // Close modals
             [...closeBtns, ...closeManageBtns, ...closeEditBtns].forEach(btn => {
                 btn.addEventListener('click', () => {
                     modal.classList.add('hidden');
@@ -687,7 +692,6 @@
                 });
             });
 
-            // Confirmation modal actions
             confirmCancelBtn.addEventListener('click', () => {
                 confirmModal.classList.add('hidden');
                 pendingDeleteId = null;
@@ -700,7 +704,6 @@
                 }
             });
 
-            // Province change for add modal (with selected_items)
             provinceSelect.addEventListener('change', function() {
                 const provinceId = this.value;
                 if (!provinceId) {
@@ -718,7 +721,7 @@
                         districtSelect.innerHTML = '<option value="">Select District</option>';
                         if (data.length === 0) {
                             districtSelect.innerHTML =
-                            '<option value="">No shipping available</option>';
+                                '<option value="">No shipping available</option>';
                             districtSelect.disabled = true;
                             return;
                         }
@@ -732,7 +735,6 @@
                     .catch(err => console.error(err));
             });
 
-            // Province change for edit modal (with selected_items)
             const editProvinceSelect = document.getElementById('edit_province_id');
             const editDistrictSelect = document.getElementById('edit_district_id');
             editProvinceSelect.addEventListener('change', function() {
@@ -796,7 +798,7 @@
                             form.reset();
                             districtSelect.disabled = true;
                             districtSelect.innerHTML =
-                            '<option value="">First select province</option>';
+                                '<option value="">First select province</option>';
                         } else {
                             displayErrors(data.message);
                         }

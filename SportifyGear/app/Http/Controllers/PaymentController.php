@@ -50,21 +50,19 @@ class PaymentController extends Controller
         try {
             $paymentMethod = $request->payment_method;
 
-            // Use Eloquent transaction
             DB::transaction(function () use ($order, $user, $paymentMethod) {
-                // Check again for existing payment
                 if (Payment::where('order_id', $order->id)->lockForUpdate()->exists()) {
                     throw new \Exception('Payment already exists for this order.');
                 }
 
-                Payment::create([
-                    'order_id' => $order->id,
-                    'user_id'  => $user->id,
-                    'method'   => $paymentMethod,
-                    'amount'   => $order->total,
-                    'status'   => $paymentMethod === 'cod' ? 'paid' : 'pending',
-                    'paid_at'  => $paymentMethod === 'cod' ? now() : null,
-                ]);
+                $payment = new Payment();
+                $payment->order_id = $order->id;
+                $payment->user_id  = $user->id;
+                $payment->method   = $paymentMethod;
+                $payment->amount   = $order->total;
+                $payment->status   = 'pending';   // direct assignment
+                $payment->paid_at  = null;
+                $payment->save();
 
                 if ($paymentMethod === 'cod') {
                     $this->finalizeOrder($order);
@@ -176,12 +174,12 @@ class PaymentController extends Controller
                 $data = $lookup->json();
                 if (($data['status'] ?? '') === 'Completed') {
                     DB::transaction(function () use ($payment, $order, $data, $pidx) {
-                        $payment->update([
-                            'status' => 'paid',
-                            'paid_at' => now(),
-                            'transaction_id' => $data['transaction_id'] ?? $pidx,
-                            'payment_details' => $data,
-                        ]);
+                        $payment->status = 'paid';
+                        $payment->paid_at = now();
+                        $payment->transaction_id = $data['transaction_id'] ?? $pidx;
+                        $payment->payment_details = $data;
+                        $payment->save();
+
                         $this->finalizeOrder($order);
                     });
 
@@ -200,11 +198,9 @@ class PaymentController extends Controller
         }
     }
 
-
     private function finalizeOrder(Order $order)
     {
-
-        $order->update(['status_id' => 2]);
+        $order->update(['status_id' => 2]);  //confirmed
 
         foreach ($order->items as $item) {
             $item->productVariant->decrement('stock_quantity', $item->quantity);
