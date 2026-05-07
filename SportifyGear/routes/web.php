@@ -16,12 +16,6 @@ use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Auth\NewPasswordController;
 
 
-/*
-|--------------------------------------------------------------------------
-| Public Routes
-|--------------------------------------------------------------------------
-*/
-
 Route::get('/', [ProductController::class, 'homeProducts'])->name('home');
 
 Route::get('/about', function () {
@@ -41,12 +35,6 @@ Route::prefix('products')->name('products.')->controller(ProductController::clas
     Route::get('/{slug}', 'show')->name('show');
 });
 
-
-/*
-|--------------------------------------------------------------------------
-| Authentication (Guest Only)
-|--------------------------------------------------------------------------
-*/
 
 Route::middleware('guest')->group(function () {
 
@@ -74,24 +62,11 @@ Route::middleware('guest')->group(function () {
     });
 });
 
-
-/*
-|--------------------------------------------------------------------------
-| Authenticated Routes
-|--------------------------------------------------------------------------
-*/
-
 Route::middleware('auth')->group(function () {
 
     // Logout
     Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | Profile
-    |--------------------------------------------------------------------------
-    */
     Route::prefix('profile')->name('profile.')->controller(ProfileController::class)->group(function () {
         Route::get('/', 'edit')->name('edit');
         Route::put('/', 'update')->name('update');
@@ -99,12 +74,6 @@ Route::middleware('auth')->group(function () {
         Route::delete('/', 'destroy')->name('destroy');
     });
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | Cart
-    |--------------------------------------------------------------------------
-    */
     Route::prefix('cart')->name('cart.')->controller(CartController::class)->group(function () {
         Route::get('/', 'index')->name('index');
         Route::get('/checkout', 'checkout')->name('checkout');
@@ -117,12 +86,6 @@ Route::middleware('auth')->group(function () {
         Route::get('/count', 'getCount')->name('count');
     });
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | Addresses
-    |--------------------------------------------------------------------------
-    */
     Route::prefix('addresses')->name('addresses.')->controller(AddressController::class)->group(function () {
         Route::post('/', 'store')->name('store');
         Route::get('/user-addresses', 'userAddresses')->name('user');
@@ -135,25 +98,12 @@ Route::middleware('auth')->group(function () {
         Route::delete('/{address}', 'destroy')->name('destroy');
     });
 
-
-    /*
-|--------------------------------------------------------------------------
-| Districts 
-|--------------------------------------------------------------------------
-*/
-
     Route::prefix('districts')->name('districts.')->controller(DistrictController::class)->group(function () {
         Route::get('/by-province/{province}', 'byProvince')->name('byProvince');
     });
     Route::get('/districts', [DistrictController::class, 'byProvince'])
         ->name('districts.list');
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | Wishlist
-    |--------------------------------------------------------------------------
-    */
     Route::prefix('wishlist')->name('wishlist.')->controller(WishlistController::class)->group(function () {
         Route::get('/', 'index')->name('index');
         Route::post('/add', 'add')->name('add');
@@ -162,12 +112,6 @@ Route::middleware('auth')->group(function () {
         Route::get('/check/{productId}', 'check')->name('check');
     });
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | Orders
-    |--------------------------------------------------------------------------
-    */
     Route::prefix('orders')->name('orders.')->controller(OrderController::class)->group(function () {
         Route::post('/prepare', 'prepare')->name('prepare');
         Route::post('/place', 'placeOrder')->name('store');
@@ -179,11 +123,6 @@ Route::middleware('auth')->group(function () {
     });
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | Payment
-    |--------------------------------------------------------------------------
-    */
     Route::prefix('payment')->name('payment.')->controller(PaymentController::class)->group(function () {
         Route::get('/{order}', 'show')->name('show');
         Route::post('/process', 'process')->name('process');

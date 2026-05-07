@@ -3,13 +3,11 @@
 namespace App\Filament\Resources\Orders\Tables;
 
 use Filament\Actions\Action;
-use Filament\Actions\BulkActionGroup;
-use Filament\Actions\DeleteBulkAction;
-use Filament\Actions\EditAction;
 use Filament\Tables\Table;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\Filter;
+use Filament\Tables\Grouping\Group;
 use Illuminate\Database\Eloquent\Builder;
 
 class OrdersTable
@@ -17,6 +15,15 @@ class OrdersTable
     public static function configure(Table $table): Table
     {
         return $table
+            ->groups([
+                Group::make('status.name')
+                    ->label('Status')
+                    ->collapsible(),
+                Group::make('created_at')
+                    ->label('Order Date')
+                    ->date()
+                    ->collapsible(),
+            ])
             ->columns([
                 TextColumn::make('order_number')
                     ->label('Order #')
@@ -43,15 +50,22 @@ class OrdersTable
                     })
                     ->sortable(),
 
-                TextColumn::make('items_count')
-                    ->label('Items')
-                    ->counts('items')
-                    ->sortable(),
+                TextColumn::make('total_quantity')
+                    ->label('Qty')
+                    ->getStateUsing(fn($record): int => $record->items->sum('quantity'))
+                    ->alignCenter(),
 
                 TextColumn::make('total')
                     ->label('Total')
                     ->money('NPR')
                     ->sortable(),
+
+                TextColumn::make('payment_method')
+                    ->label('Method')
+                    ->getStateUsing(function ($record): string {
+                        return optional($record->payments()->latest()->first())->method ?? '—';
+                    })
+                    ->alignCenter(),
 
                 TextColumn::make('payment_status')
                     ->label('Payment')
@@ -63,13 +77,23 @@ class OrdersTable
                         default   => 'gray',
                     })
                     ->getStateUsing(function ($record): string {
-                        $latestPayment = $record->payments()->latest()->first();
-                        return $latestPayment?->status ?? 'Pending';
+                        return optional($record->payments()->latest()->first())->status ?? 'Pending';
                     }),
 
-                TextColumn::make('address.city')
-                    ->label('Shipping City')
-                    ->searchable(),
+                TextColumn::make('shipping_address')
+                    ->label('Shipping Address')
+                    ->getStateUsing(function ($record): string {
+                        if (!$record->address) {
+                            return '—';
+                        }
+                        return implode(', ', array_filter([
+                            $record->address->address_line1,
+                            optional($record->address->district)->name,
+                            optional($record->address->province)->name,
+                        ]));
+                    })
+                    ->wrap()
+                    ->searchable(false),
 
                 TextColumn::make('created_at')
                     ->label('Date')
@@ -93,22 +117,20 @@ class OrdersTable
                             ->when($data['to'], fn($q, $date) => $q->whereDate('created_at', '<=', $date));
                     }),
             ])
-            ->recordActions([
+            ->actions([
                 Action::make('viewItems')
-                    ->label('View Items')
-                    ->icon('heroicon-o-shopping-cart')
-                    ->modalHeading(fn($record) => "Order #{$record->order_number} – Items")
-                    ->modalContent(fn($record) => view('filament.resources.orders.components.order-items-modal', [
+                    ->label('View')
+                    ->icon('heroicon-o-eye')
+                    ->modalHeading(fn($record) => "Order #{$record->order_number}")
+                    ->modalContent(fn($record) => view('filament/order-items-modal', [
                         'order' => $record,
                     ]))
-                    ->modalSubmitAction(false),
-                EditAction::make(),
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel('Close'),
             ])
-            ->bulkActions([
-                BulkActionGroup::make([
-                    DeleteBulkAction::make(),
-                ]),
-            ])
+            ->recordAction('viewItems')
+            ->recordUrl(null)
+            ->bulkActions([])
             ->defaultSort('created_at', 'desc');
     }
 }
