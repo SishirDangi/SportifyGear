@@ -128,8 +128,14 @@ class OrdersTable
                     ->modalSubmitAction(false)
                     ->modalCancelActionLabel('Close'),
             ])
-            ->recordAction('viewItems')
-            ->recordUrl(null)
+
+            ->recordUrl(
+                fn($record): string => route(
+                    'filament.admin.resources.orders.edit',
+                    $record
+                )
+            )
+
             ->bulkActions([])
             ->defaultSort('created_at', 'desc');
     }
