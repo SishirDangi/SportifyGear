@@ -1,4 +1,9 @@
 <x-frontend.layout>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+
     <div class="py-12 bg-gray-50 min-h-screen">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <h1 class="text-3xl font-bold text-gray-900 mb-8">Complete Your Order</h1>
@@ -113,6 +118,7 @@
         </div>
     </div>
 
+    <!-- Add Address Modal -->
     <div id="addAddressModal"
         class="fixed inset-0 bg-gray-900 bg-opacity-50 backdrop-blur-sm transition-opacity z-50 hidden">
         <div class="flex items-center justify-center min-h-screen p-4">
@@ -195,6 +201,7 @@
         </div>
     </div>
 
+    <!-- Manage Addresses Modal -->
     <div id="manageAddressesModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 backdrop-blur-sm z-50 hidden">
         <div class="flex items-center justify-center min-h-screen p-4">
             <div class="relative bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[85vh] flex flex-col">
@@ -220,6 +227,7 @@
         </div>
     </div>
 
+    <!-- Edit Address Modal -->
     <div id="editAddressModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 backdrop-blur-sm z-50 hidden">
         <div class="flex items-center justify-center min-h-screen p-4">
             <div class="relative bg-white rounded-xl shadow-xl max-w-md w-full max-h-[90vh] flex flex-col">
@@ -305,6 +313,7 @@
         </div>
     </div>
 
+    <!-- Confirm Delete Modal -->
     <div id="confirmModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 backdrop-blur-sm z-50 hidden">
         <div class="flex items-center justify-center min-h-screen p-4">
             <div class="relative bg-white rounded-xl shadow-xl max-w-sm w-full">
@@ -409,13 +418,14 @@
 
         async function refreshAddressDropdown(selectedId = null) {
             try {
-                const res = await fetch('/addresses', {
+                const res = await fetch('{{ route('addresses.user') }}', {
                     headers: {
                         'X-Requested-With': 'XMLHttpRequest'
                     }
                 });
-                if (!res.ok) throw new Error();
-                const addresses = await res.json();
+                if (!res.ok) throw new Error('Failed to fetch addresses');
+                const data = await res.json();
+                const addresses = data.addresses || [];
                 const select = document.getElementById('address_id');
                 const currentSelected = selectedId !== null ? selectedId : select.value;
                 select.innerHTML = '<option value="">Select an address</option>';
@@ -427,7 +437,6 @@
                     if (addr.id == currentSelected) option.selected = true;
                     select.appendChild(option);
                 });
-                // After refreshing, re-fetch shipping if an address is selected
                 if (select.value) fetchShippingFee();
                 else {
                     currentShippingFee = 0;
@@ -435,6 +444,7 @@
                 }
             } catch (err) {
                 console.error('Failed to refresh addresses', err);
+                document.getElementById('addressSuccessMessage')?.classList.add('hidden');
             }
         }
 
@@ -475,7 +485,7 @@
         function resetAddForm() {
             addForm.reset();
             document.querySelectorAll('#newAddressForm .error-message').forEach(el => el.classList.add('hidden'));
-            modalErrorMessage.classList.add('hidden');
+            if (modalErrorMessage) modalErrorMessage.classList.add('hidden');
             loadDistricts(null, 'district_select');
         }
 
@@ -489,18 +499,16 @@
 
         const addProvinceSelect = document.getElementById('province_select');
         const addDistrictSelect = document.getElementById('district_select');
-        addProvinceSelect?.addEventListener('change', (e) => {
-            loadDistricts(e.target.value, 'district_select');
-        });
+        addProvinceSelect?.addEventListener('change', (e) => loadDistricts(e.target.value, 'district_select'));
 
         addForm?.addEventListener('submit', async (e) => {
             e.preventDefault();
             document.querySelectorAll('#newAddressForm .error-message').forEach(el => el.classList.add(
                 'hidden'));
-            modalErrorMessage.classList.add('hidden');
+            if (modalErrorMessage) modalErrorMessage.classList.add('hidden');
 
             const formData = new FormData(addForm);
-            const res = await fetch('/addresses', {
+            const res = await fetch('{{ route('addresses.store') }}', {
                 method: 'POST',
                 headers: {
                     'X-CSRF-TOKEN': getCsrfToken(),
@@ -511,14 +519,20 @@
             });
 
             if (res.ok) {
-                const newAddress = await res.json();
-                await refreshAddressDropdown(newAddress.id);
-                addModal.classList.add('hidden');
-                const successDiv = document.getElementById('addressSuccessMessage');
-                if (successDiv) {
-                    successDiv.textContent = 'Address added successfully!';
-                    successDiv.classList.remove('hidden');
-                    setTimeout(() => successDiv.classList.add('hidden'), 3000);
+                const data = await res.json();
+                if (data.success && data.address) {
+                    await refreshAddressDropdown(data.address.id);
+                    addModal.classList.add('hidden');
+                    const successDiv = document.getElementById('addressSuccessMessage');
+                    if (successDiv) {
+                        successDiv.textContent = 'Address added successfully!';
+                        successDiv.classList.remove('hidden');
+                        setTimeout(() => successDiv.classList.add('hidden'), 3000);
+                    }
+                } else {
+                    if (modalErrorMessage) modalErrorMessage.textContent = data.message ||
+                        'Failed to add address';
+                    if (modalErrorMessage) modalErrorMessage.classList.remove('hidden');
                 }
             } else {
                 const errorData = await res.json();
@@ -531,7 +545,7 @@
                             errorSpan.classList.remove('hidden');
                         }
                     }
-                } else {
+                } else if (modalErrorMessage) {
                     modalErrorMessage.textContent = errorData.message || 'Something went wrong';
                     modalErrorMessage.classList.remove('hidden');
                 }
@@ -547,16 +561,17 @@
         async function loadManageAddresses() {
             manageList.innerHTML = '<div class="text-center text-gray-500 py-4">Loading...</div>';
             try {
-                const res = await fetch('/addresses', {
+                const res = await fetch('{{ route('addresses.user') }}', {
                     headers: {
                         'X-Requested-With': 'XMLHttpRequest'
                     }
                 });
                 if (!res.ok) throw new Error();
-                const addresses = await res.json();
+                const data = await res.json();
+                const addresses = data.addresses || [];
                 if (addresses.length === 0) {
                     manageList.innerHTML =
-                        '<div class="text-center text-gray-500 py-4">No addresses found. Add one using the "Add New Address" button.</div>';
+                        '<div class="text-center text-gray-500 py-4">No addresses found. Add one using the "+ Add New Address" button.</div>';
                     return;
                 }
                 manageList.innerHTML = '';
@@ -589,6 +604,7 @@
                 });
             } catch (err) {
                 manageList.innerHTML = '<div class="text-center text-red-500 py-4">Failed to load addresses.</div>';
+                console.error(err);
             }
         }
 
@@ -609,7 +625,7 @@
                 });
                 if (res.ok) {
                     await refreshAddressDropdown();
-                    if (manageModal.classList.contains('hidden') === false) await loadManageAddresses();
+                    if (!manageModal.classList.contains('hidden')) await loadManageAddresses();
                     document.getElementById('confirmModal').classList.add('hidden');
                     const addressSelect = document.getElementById('address_id');
                     if (addressSelect.value == currentDeleteId) addressSelect.value = '';
@@ -650,7 +666,7 @@
         function resetEditForm() {
             editForm.reset();
             document.querySelectorAll('#editAddressForm .edit-error-message').forEach(el => el.classList.add('hidden'));
-            editErrorMessage.classList.add('hidden');
+            if (editErrorMessage) editErrorMessage.classList.add('hidden');
             loadDistricts(null, 'edit_district_id');
         }
 
@@ -658,13 +674,14 @@
             resetEditForm();
             editModal.classList.remove('hidden');
             try {
-                const res = await fetch(`/addresses/${addressId}`, {
+                const res = await fetch(`/addresses/${addressId}/edit-data`, {
                     headers: {
                         'X-Requested-With': 'XMLHttpRequest'
                     }
                 });
                 if (!res.ok) throw new Error();
-                const addr = await res.json();
+                const data = await res.json();
+                const addr = data.address;
                 document.getElementById('edit_address_id').value = addr.id;
                 document.getElementById('edit_name').value = addr.name;
                 document.getElementById('edit_phone_no').value = addr.phone_no;
@@ -676,21 +693,22 @@
                 provinceSelect.value = addr.province_id;
                 await loadDistricts(addr.province_id, 'edit_district_id', addr.district_id);
             } catch (err) {
-                editErrorMessage.textContent = 'Failed to load address details';
-                editErrorMessage.classList.remove('hidden');
+                if (editErrorMessage) {
+                    editErrorMessage.textContent = 'Failed to load address details';
+                    editErrorMessage.classList.remove('hidden');
+                }
+                console.error(err);
             }
         }
 
         const editProvinceSelect = document.getElementById('edit_province_id');
-        editProvinceSelect?.addEventListener('change', (e) => {
-            loadDistricts(e.target.value, 'edit_district_id');
-        });
+        editProvinceSelect?.addEventListener('change', (e) => loadDistricts(e.target.value, 'edit_district_id'));
 
         editForm?.addEventListener('submit', async (e) => {
             e.preventDefault();
             document.querySelectorAll('#editAddressForm .edit-error-message').forEach(el => el.classList.add(
                 'hidden'));
-            editErrorMessage.classList.add('hidden');
+            if (editErrorMessage) editErrorMessage.classList.add('hidden');
 
             const addressId = document.getElementById('edit_address_id').value;
             const formData = new FormData(editForm);
@@ -709,7 +727,7 @@
             if (res.ok) {
                 await refreshAddressDropdown(addressId);
                 editModal.classList.add('hidden');
-                if (manageModal.classList.contains('hidden') === false) await loadManageAddresses();
+                if (!manageModal.classList.contains('hidden')) await loadManageAddresses();
                 const successDiv = document.getElementById('addressSuccessMessage');
                 if (successDiv) {
                     successDiv.textContent = 'Address updated successfully!';
@@ -728,7 +746,7 @@
                             errorSpan.classList.remove('hidden');
                         }
                     }
-                } else {
+                } else if (editErrorMessage) {
                     editErrorMessage.textContent = errorData.message || 'Update failed';
                     editErrorMessage.classList.remove('hidden');
                 }

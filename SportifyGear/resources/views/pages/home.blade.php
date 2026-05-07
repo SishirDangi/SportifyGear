@@ -19,7 +19,7 @@
                             class="bg-white text-orange-600 px-6 py-3 rounded-xl font-semibold hover:bg-gray-100 transition w-full sm:w-auto text-center">
                             Shop Now
                         </a>
-                        <a href="#categories"
+                        <a href="{{ route('categories.explore') }}"
                             class="border border-white px-6 py-3 rounded-xl font-semibold hover:bg-white hover:text-orange-600 transition w-full sm:w-auto text-center">
                             Explore Categories
                         </a>

@@ -191,7 +191,13 @@ class OrderController extends Controller
     public function success(Order $order)
     {
         if ($order->user_id !== Auth::id()) abort(403);
-        $order->load(['items.productVariant.product', 'address', 'status']);
+        $order->load([
+            'items.productVariant.product',
+            'address',
+            'address.province',
+            'address.district',
+            'status'
+        ]);
         return view('orders.success', compact('order'));
     }
 
@@ -207,7 +213,14 @@ class OrderController extends Controller
     public function show(Order $order)
     {
         if ($order->user_id !== Auth::id()) abort(403);
-        $order->load(['items.productVariant.product', 'address', 'status', 'coupon']);
+        $order->load([
+            'items.productVariant.product',
+            'address',
+            'address.province',
+            'address.district',
+            'status',
+            'coupon'
+        ]);
         return view('orders.show', compact('order'));
     }
 

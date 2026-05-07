@@ -14,7 +14,7 @@ use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Auth\NewPasswordController;
-
+use App\Http\Controllers\CategoryController;
 
 Route::get('/', [ProductController::class, 'homeProducts'])->name('home');
 
@@ -35,6 +35,8 @@ Route::prefix('products')->name('products.')->controller(ProductController::clas
     Route::get('/{slug}', 'show')->name('show');
 });
 
+//categories
+Route::get('/explore-categories', [CategoryController::class, 'explore'])->name('categories.explore');
 
 Route::middleware('guest')->group(function () {
 
