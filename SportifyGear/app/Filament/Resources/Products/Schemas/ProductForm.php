@@ -188,8 +188,7 @@ class ProductForm
 
                             TextInput::make('name')
                                 ->label('Variant Name')
-                                ->maxLength(255)
-                                ->placeholder('Example: Samsung S26 Ultra'),
+                                ->maxLength(255),
 
                             TextInput::make('sku')
                                 ->label('SKU')

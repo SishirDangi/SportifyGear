@@ -230,21 +230,16 @@
                         </div>
                     </div>
 
-                    <!-- SPECIFICATIONS -->
-                    @if ($product->variants->first() && $product->variants->first()->attributeValues->isNotEmpty())
-                        <div class="mb-6">
-                            <h3 class="text-lg font-semibold text-gray-900 mb-2">Specifications</h3>
-                            <div class="bg-gray-50 rounded-lg p-4 space-y-2">
-                                @foreach ($product->variants->first()->attributeValues as $attr)
-                                    <div class="flex">
-                                        <span
-                                            class="w-32 text-sm font-medium text-gray-600">{{ $attr->attribute->name }}:</span>
-                                        <span class="text-sm text-gray-800">{{ $attr->value }}</span>
-                                    </div>
-                                @endforeach
-                            </div>
+                    {{-- Varient Descriptions --}}
+                    <div class="mb-5">
+                        <h2 class="text-xl font-semibold text-gray-800 mb-2">
+                            Variant Description
+                        </h2>
+
+                        <div id="variantDescription">
+                            {!! $selectedVariant->description ?? '' !!}
                         </div>
-                    @endif
+                    </div>
 
                     <!-- ACTION BUTTONS -->
                     @auth
@@ -323,9 +318,22 @@
 
             <!-- Product Description -->
             <div class="mb-6 mt-6">
-                <h1 class="text-3xl font-bold text-gray-900 mb-2">Product Details</h1>
+                <h1 class="text-3xl font-bold text-gray-900 mb-2">
+                    Product Details
+                </h1>
+
                 <div id="productDescription" class="text-gray-600 leading-relaxed">
-                    {!! $selectedVariant->description ?? $product->description !!}
+                    <div class="mb-4">
+                        <h2 class="text-xl font-semibold text-gray-800 mb-2">
+                            Product Description
+                        </h2>
+
+                        <div id="mainProductDescription">
+                            {!! $product->description !!}
+                        </div>
+                    </div>
+
+
                 </div>
             </div>
 
@@ -492,8 +500,11 @@
                         }
 
                         // Description
-                        const descDiv = document.getElementById('productDescription');
-                        if (descDiv) descDiv.innerHTML = data.description || '';
+                        const variantDescDiv = document.getElementById('variantDescription');
+
+                        if (variantDescDiv) {
+                            variantDescDiv.innerHTML = data.description || '';
+                        }
 
                         // Images
                         const mainImg = document.getElementById('mainProductImage');
