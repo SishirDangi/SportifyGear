@@ -230,14 +230,14 @@
                         </div>
                     </div>
 
-                    {{-- Varient Descriptions --}}
+                    {{-- Variant Descriptions --}}
                     <div class="mb-5">
                         <h2 class="text-xl font-semibold text-gray-800 mb-2">
                             Variant Description
                         </h2>
 
                         <div id="variantDescription">
-                            {!! $selectedVariant->description ?? '' !!}
+                            {!! $selectedVariant && !empty($selectedVariant->description) ? $selectedVariant->description : 'N/A' !!}
                         </div>
                     </div>
 
@@ -310,7 +310,7 @@
                         <div class="mt-3">
                             <button disabled
                                 class="w-full bg-gray-400 text-white font-semibold py-3 px-6 rounded-lg cursor-not-allowed">Login
-                                to Book</button>
+                                to Purchase</button>
                         </div>
                     @endauth
                 </div>
@@ -503,7 +503,15 @@
                         const variantDescDiv = document.getElementById('variantDescription');
 
                         if (variantDescDiv) {
-                            variantDescDiv.innerHTML = data.description || '';
+
+                            let description = data.description;
+                            let plainText = description ?
+                                description.replace(/<[^>]*>/g, '').trim() :
+                                '';
+
+                            variantDescDiv.innerHTML = plainText !== '' ?
+                                description :
+                                'N/A';
                         }
 
                         // Images
