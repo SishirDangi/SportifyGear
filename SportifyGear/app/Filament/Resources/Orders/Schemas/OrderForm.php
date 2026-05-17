@@ -281,7 +281,6 @@ class OrderForm
 
                         ->native(false)
 
-                        // Show database value
                         ->formatStateUsing(function ($record) {
 
                             return $record->payments()
@@ -289,7 +288,6 @@ class OrderForm
                                 ->first()?->paid_at;
                         })
 
-                        // Editable only for COD
                         ->disabled(function ($record) {
 
                             $payment = $record->payments()->latest()->first();
